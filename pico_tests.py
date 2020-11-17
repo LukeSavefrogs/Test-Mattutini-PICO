@@ -58,7 +58,7 @@ from MyCache.utils import Cache
 		- 17/11/20: Rimosse alcune funzioni di sviluppo, aggiunto controllo se esce la richiesta di acquisto Andata e Ritorno, aggiunto Help per file di configurazione
 
 	APPUNTI DI SVILUPPO:
-		- Per la compilazione: pyinstaller --clean --name "Test di acquisto - PICO" --log-level=WARN --onefile --noconfirm --add-data="./conf/;./conf/" .\pico_tests.py
+		- Per la compilazione: pyinstaller --clean --name "Test_acquisto-PICO" --log-level=WARN --onefile --noconfirm --add-data="./conf/;./conf/" .\pico_tests.py
 """
 
 
