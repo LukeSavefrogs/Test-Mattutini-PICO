@@ -1,0 +1,10 @@
+test_marius/
+log/
+build/
+__pycache__/
+PortalePICO - GetNodes.py
+
+
+# To exclude sensitive data
+conf/
+*.spec
