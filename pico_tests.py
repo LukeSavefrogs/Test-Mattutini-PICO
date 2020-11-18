@@ -521,7 +521,7 @@ if __name__ == "__main__":
 	program_start = time()
 
 	APP_ID = "Test_Mattutini"
-	APP_VERSION = "1.3.0"
+	APP_VERSION = "1.4.0"
 	APP_DATA = {}
 
 	FILE_PATH = os.path.dirname(os.path.realpath(__file__))
