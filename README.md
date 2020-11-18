@@ -19,13 +19,17 @@
 - [Configurazione](#configurazione)
 	- [Esempio file di configurazione](#esempio-file-di-configurazione)
 - [Consigli e altre informazioni](#consigli-e-altre-informazioni)
+- [Importante](#importante)
+- [Sviluppo](#sviluppo)
+	- [Per utilizzare i file sorgenti](#per-utilizzare-i-file-sorgenti)
+	- [Per compilare il progetto](#per-compilare-il-progetto)
 
 ## Introduzione
 ### A cosa serve?
 Questo script si occupa di effettuare il **test di acquisto** sui nodi infrastrutturali **No-Production** del progetto **PICO**.
 
 ### Come si usa?
-1. **Scarica** l'eseguibile da [questo link](https://github.com/LukeSavefrogs/PICO-Tests/raw/master/dist/Test%20di%20acquisto%20-%20PICO.exe) e salvalo in una cartella di tua scelta.
+1. **Scarica** l'eseguibile da [questo link](https://github.com/LukeSavefrogs/PICO-Tests/raw/master/dist/Test_acquisto-PICO.exe) e salvalo in una cartella di tua scelta.
 
 2. Ora puoi lanciarlo semplicemente facendo **doppio click**. 
    
@@ -113,3 +117,23 @@ travel:
 - Al momento lo script supporta **unicamente** Google Chrome. Se non è installato andrà in errore.
 
 - Al momento la guida qui su GitHub **non è completa**, a differenza del display di aiuto incluso nel programma (e visualizzabile in ogni momento lanciando `Test_acquisto-PICO.exe -h` oppure `Test_acquisto-PICO.exe --help`) :smile:. 
+
+
+## Importante
+Al **primo avvio** del programma, esso cercherà di contattare il **Portale Pico GTS** per scaricare le **definizioni aggiornate** dei nodi su cui effettuare i test mattutini. Se esso risulterà **irraggiungibile** la procedura verrà **interrotta** forzatamente.
+
+Queste definizioni (salvate in un file nella *cartella home* dell'utente) verranno **aggiornate ogni settimana**. Se invece durante questi successivi aggiornamenti il Portale dovesse risultare inaccessibile, il programma **non si bloccherà**, ma utilizzerà la **configurazione obsoleta**, rimandando l'aggiornamento all'**avvio successivo**.
+
+## Sviluppo
+### Per utilizzare i file sorgenti
+  1. **Clonare** o **scaricare** il repository
+   ```PowerShell
+   git clone https://github.com/LukeSavefrogs/Test-Mattutini-PICO.git
+   ```
+  2. **Installare** `python` e `pipenv`  (se già non li si possiede)
+  3. **Aggiornare le dipendenze** con il comando `pipenv install` 
+
+### Per compilare il progetto
+```PowerShell
+pyinstaller --clean --name "Test_acquisto-PICO" --log-level=WARN --onefile --noconfirm --add-data="./conf/;./conf/" .\pico_tests.py
+```

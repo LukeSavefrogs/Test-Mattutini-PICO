@@ -14,6 +14,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.microsoft import IEDriverManager
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, WebDriverException
 
 
@@ -44,6 +45,8 @@ from portalePICO.utils import Trenitalia
 import utility
 
 from MyCache.utils import Cache
+
+from exceptions import BrowserNotInstalledException
 
 
 """
@@ -165,7 +168,6 @@ def StartTest():
 	chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
 	
 	__driver = webdriver.Chrome( ChromeDriverManager(log_level=0).install(), options=chrome_options )
-	# print(__driver.get_window_size())
 	__driver.set_window_size(1920, 1080)
 
 	try:
@@ -180,7 +182,13 @@ def StartTest():
 		
 		elif "net::ERR_CONNECTION_REFUSED" in ex.msg:
 			print("FATAL ERROR - Impossibile contattare il server. \nCodice di errore net::ERR_CONNECTION_REFUSED\n")
-		
+
+		elif re.match(pattern="unknown error: cannot find .* binary", string=ex.msg):
+			browser = re.match(pattern="unknown error: cannot find (.*?) binary", string=ex.msg).group(1)
+			# print(f"Il browser '{browser}' non risulta installato sulla macchina")
+
+			raise BrowserNotInstalledException(browser)
+
 		else:
 			print(f"OTHER ERROR - Message: {ex.msg}")
 			# print(f"sys.exc_info(): {sys.exc_info()}")
@@ -512,11 +520,35 @@ def singleNodeTest (url):
 if __name__ == "__main__":
 	program_start = time()
 
+	APP_ID = "Test_Mattutini"
 	APP_VERSION = "1.3.0"
 	APP_DATA = {}
 
 	FILE_PATH = os.path.dirname(os.path.realpath(__file__))
 	DEBUG = True
+
+
+
+	# DEFAULT_CONFIGURATION = {
+	# 	"card":{
+	# 		"firstName": 	"PICO",
+	# 		"lastName": 	"Trenitalia",
+	# 		"number": 		4539999999999993,
+	# 		"exp_date": 	"12/2022",
+	# 		"csc": 			111
+	# 	},
+	# 	"passenger":{
+	# 		"firstName": 	"Test",
+	# 		"lastName": 	"User",
+	# 		"email": 		"test.email@test.com",
+	# 		"tel_number": 	"0123456789",
+	# 		"birth_date": 	"11/09/2001"
+	# 	},
+	# 	"travel":{
+	# 		"departure": 	"Frascati",
+	# 		"arrival": 		"Milano Centrale"
+	# 	}
+	# }
 
 
 	DEFAULT_AMBIENTI = [ 
@@ -525,6 +557,7 @@ if __name__ == "__main__":
 		"Integrazione", 
 		"Training" 
 	]
+	
 	DEFAULT_STAZIONI = {
 		"partenza": "Frascati",
 		"arrivo": "Milano Centrale",
@@ -613,6 +646,12 @@ if __name__ == "__main__":
 				arrival:    Torino               # Stazione di arrivo
 			
 
+		Aggiornamento configurazione infrastrutturale:
+			Al primo avvio il programma si connettera' al Portale Pico GTS per scaricarsi le configurazioni dei nodi (PICO, NUGO, C2C e BT) e salvarle nella home dell'utente.
+			Questo file di configurazione verra' aggiornato automaticamente ogni settimana. 
+
+			Se al primo avvio il Portale non fosse raggiungibile il programma si blocchera' e dira' di ritentare una volta tornato raggiungibile. 
+			Se invece cio' dovesse accadere ad un aggiornamento successivo, verra' automaticamente usata la configurazione vecchia, e l'aggiornamento sara' rimandato all'avvio successivo.
 
 		Esempi:
          ''')
@@ -688,27 +727,32 @@ if __name__ == "__main__":
 				cache.setCache(Trenitalia.getInfrastructure())
 				APP_DATA = cache.getCache()
 
-				assert "data" in APP_DATA
+				if not "data" in APP_DATA:
+					print("Nessun dato ricavato dall'analisi del portale")
+					exit(1)
+			
+			except BrowserNotInstalledException as e:
+				print(f"ERRORE CRITICO - Il browser '{e.browser}' non è installato sul sistema. Procedura annullata")
+
+				exit(2)
+
 			except Exception as e:
 				print(f"CRITICAL ERROR - Fallito update infrastruttura con errore: {e}")
 
 			nodes = APP_DATA["data"]
 		else:
-			print("Impossibile collegarsi al Portale PICO GTS per l'aggiornamento del file di configurazione.")
+			print(f"Impossibile collegarsi al Portale PICO GTS ({PortalePicoGTS.getUrl()}) per l'aggiornamento del file di configurazione.")
 
 			if CLI_ARGS.force_update:
-				print("Impossibile forzare l'aggiornamento. Riavviare lo script senza il flag '-f'\n\n")
+				print("Impossibile forzare l'aggiornamento. \n")
 
-				exit(1)
-
-			if not cache.exists():
-				print("Ripiego sulla copia in bundle con l'eseguibile..\n")
-
-				with open(utility.getCorrectPath(os.path.join("conf","nodi_infrastruttura.yml")), 'r') as stream:
-					APP_DATA = yaml.safe_load(stream)
-			else:
-				print("Uso configurazione vecchia... Verra' aggiornata appena sara' raggiungibile il portale\n")
-				APP_DATA = cache.getCache(check_valid=False)
+			elif not cache.exists():
+				print("FATAL ERROR - Per la prima configurazione e' mandatoria la disponibilita del portale per prendere i nodi infrastrutturali\n")
+				
+				exit(99)
+		
+			print("Uso configurazione vecchia... Verra' aggiornata appena sara' raggiungibile il portale..\n")
+			APP_DATA = cache.getCache(check_valid=False)
 
 
 	nodes = APP_DATA["data"]
@@ -739,6 +783,7 @@ if __name__ == "__main__":
 		try:
 			with open(os.path.realpath(CLI_ARGS.path_custom_config), 'r') as stream:
 				USER_CONFIGURATION =  yaml.safe_load(stream)
+				
 		except FileNotFoundError as e:
 			print("TEST ABORTITO - File di Configurazione Utente non trovato")
 			print(e)
@@ -789,41 +834,46 @@ if __name__ == "__main__":
 
 	risultati_test = {}
 
+	try:
+		for ambiente in CLI_ARGS.ambienti:
+			print("-------------------------------------------------------------------------------")
+			print (f"Test di acquisto per {ambiente}")
 
-	for ambiente in CLI_ARGS.ambienti:
-		print("-------------------------------------------------------------------------------")
-		print (f"Test di acquisto per {ambiente}")
+			if not ambiente in nodes["Pico"]:
+				print (f"\nATTENZIONE - L'ambiente '{ambiente}' non esiste o il file di configurazione potrebbe non essere aggiornato.")
+				continue
 
-		if not ambiente in nodes["Pico"]:
-			print (f"\nATTENZIONE - L'ambiente '{ambiente}' non esiste o il file di configurazione potrebbe non essere aggiornato.")
-			continue
+			ENDPOINT = [ jvm["urls"]["https"] for jvm in nodes["Pico"][ambiente]["B2C"]["APPLICATION_SERVER"] ]
+			
+			if not ambiente in risultati_test:
+				risultati_test[ambiente] = {
+					"totale_nodi": len(ENDPOINT),
+					"risultati": []
+				}
+			
+			for index, url in enumerate(ENDPOINT):
+				print(f"{ambiente} B2C [nodo {index+1} di {len(ENDPOINT)}] - {url}")
+				
+				test_success = singleNodeTest(url)
+				
 
-		ENDPOINT = [ jvm["urls"]["https"] for jvm in nodes["Pico"][ambiente]["B2C"]["APPLICATION_SERVER"] ]
-		
-		if not ambiente in risultati_test:
-			risultati_test[ambiente] = {
-				"totale_nodi": len(ENDPOINT),
-				"risultati": []
-			}
-		
-		for index, url in enumerate(ENDPOINT):
-			print(f"{ambiente} B2C [nodo {index+1} di {len(ENDPOINT)}] - {url}")
+				risultati_test[ambiente]["risultati"].append({
+					"nodo": index+1,
+					"url": url,
+					"result": test_success
+				})
 
-			test_success = singleNodeTest(url)
-
-			risultati_test[ambiente]["risultati"].append({
-				"nodo": index+1,
-				"url": url,
-				"result": test_success
-			})
-
-			if test_success:
-				print(f"************** TEST OK [{ambiente} {index+1}/{len(ENDPOINT)}] **************")
-			else:
-				print(f"!?!?!?!?!?!? TEST KO [{ambiente} {index+1}/{len(ENDPOINT)}] ?!?!?!?!?!?!")
-
+				if test_success:
+					print(f"************** TEST OK [{ambiente} {index+1}/{len(ENDPOINT)}] **************")
+				else:
+					print(f"!?!?!?!?!?!? TEST KO [{ambiente} {index+1}/{len(ENDPOINT)}] ?!?!?!?!?!?!")
 
 			print("\n")
+
+	except BrowserNotInstalledException as e:
+		print(f"ERRORE CRITICO - Il browser '{e.browser}' non è installato sul sistema. Procedura annullata")
+
+		exit(2)
 	
 	if not CLI_ARGS.ambienti:
 		print("---------------------------------------------------------------------------------------------")

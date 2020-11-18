@@ -175,6 +175,10 @@ class PortalePicoGTS(object):
 	def isReachable():
 		return uri_exists_stream(BASE_URL)
 
+	@staticmethod
+	def getUrl():
+		return BASE_URL
+
 
 
 
