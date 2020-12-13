@@ -1,4 +1,8 @@
+import inspect
 from textwrap import indent
+from urllib.parse import urlparse
+
+from webdriver_manager.driver import ChromeDriver
 from portalePICO.main import PortalePicoGTS
 import signal
 import os
@@ -29,11 +33,11 @@ import textwrap
 import logging
 
 import traceback
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 
 # For testing purposes only
-import random
-import json
+# import random
+# import json
 
 
 
@@ -59,9 +63,13 @@ from exceptions import BrowserNotInstalledException
 		- 01/11/20: Aggiunta misurazione performance, aggiunta eccezione di rete, aggiunto percorso anche quando si usa la versione eseguibile
 		- 01/11/20: Aggiunti parametri da CLI, aggiunto controllo raggiungibilità macchina tramite richiesta HTTP (molto più veloce)
 		- 17/11/20: Rimosse alcune funzioni di sviluppo, aggiunto controllo se esce la richiesta di acquisto Andata e Ritorno, aggiunto Help per file di configurazione
+		- 05/12/20: Fixato bug per cui andava in errore quando un viaggio selezionato non aveva cambi
 
 	APPUNTI DI SVILUPPO:
 		- Per la compilazione: pyinstaller --clean --name "Test_acquisto-PICO" --log-level=WARN --onefile --noconfirm --add-data="./conf/;./conf/" .\pico_tests.py
+		- Per la copia/upload: Copy-Item .\dist\Test_acquisto-P* "\\172.30.62.6\gts\sharedScripts\Test di Acquisto"
+
+		- Entrambi: pyinstaller --clean --name "Test_acquisto-PICO" --log-level=WARN --onefile --noconfirm --add-data="./conf/;./conf/" .\pico_tests.py; if ($?) { Copy-Item .\dist\Test_acquisto-* "\\172.30.62.6\gts\sharedScripts\Test di Acquisto" }
 """
 
 
@@ -134,18 +142,93 @@ def signal_handler(sig, frame):
 	sys.exit(0)
 
 
+def getEntryPoint():
+	is_executable = getattr(sys, 'frozen', False)
+	
+	if is_executable:
+		# print("Program is an executable")
+		return sys.executable
+
+	# print("Program is a script")
+	return inspect.stack()[-1][1]
+
+
+
+class DebugManager(object):
+	__driver = None
+
+	exception_log_filename = ""
+	exception_png_filename = ""
+
+	def __init__(self, instance_identifier) -> None:
+		FILE_PATH = os.path.dirname(os.path.realpath(__file__))
+		self.exception_log_filename = os.path.join(FILE_PATH, f"DebugC2C-beforeExceptionExit-{instance_identifier}.log")
+		self.exception_png_filename = os.path.join(FILE_PATH, f"DebugC2C-beforeExceptionExit-{instance_identifier}.png")
+
+	def setDriver(self, driver):
+		self.__driver = driver
+
+	def dumpException(self):
+		print("Stacktrace:")
+		traceback.print_stack()
+
+		with open(self.exception_log_filename, "w") as stacktrace_file:
+			traceback.print_stack(file=stacktrace_file)
+
+		if self.__driver:
+			self.__driver.save_screenshot(self.exception_png_filename)
+
+	@staticmethod
+	def dump(instance_identifier, driver: ChromeDriver = None, with_screenshot = False, with_stacktrace=False, print_stacktrace=False):
+		"""Dumps to the filesystem a file containing the tacktrace and/or a screenshot of the current page
+
+		Args:
+			instance_identifier (str): Unique identifier
+			driver (ChromeDriver, optional): WebDriver instance to use for the screenshot. Defaults to None.
+			with_screenshot (bool, optional): Whether to print a screenshot of the current webpage to file. Defaults to False.
+			with_stacktrace (bool, optional): Whether to save the stacktrace to file. Defaults to False.
+			print_stacktrace (bool, optional): Whether to print the stacktrace to screen. Defaults to False.
+		"""
+		if print_stacktrace:
+			print("Stacktrace:")
+			traceback.print_stack()
+
+		CREATED_FILES = []
+		
+		FILE_PATH = os.path.dirname(os.path.realpath(getEntryPoint()))
+		dump_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+		exception_log_filename = os.path.join(FILE_PATH, f"Debug-{dump_time}-{instance_identifier}.log")
+		exception_png_filename = os.path.join(FILE_PATH, f"Debug-{dump_time}-{instance_identifier}.png")
+
+		if with_stacktrace:
+			with open(exception_log_filename, "w") as stacktrace_file:
+				traceback.print_stack(file=stacktrace_file)
+				CREATED_FILES.append(exception_log_filename)
+
+		if driver and with_screenshot:
+			driver.save_screenshot(exception_png_filename)
+			CREATED_FILES.append(exception_png_filename)
+		
+		return CREATED_FILES
+
+
 
 @contextmanager
-def StartTest():
+def StartTest(url, visible=False):
 	"""
 	Wrapper around the tests.
 	This ensures the test is ALWAYS ended gracefully, doing some clean-up before exiting (https://book.pythontips.com/en/latest/context_managers.html#implementing-a-context-manager-as-a-generator)
 
+	Args:
+		visible (bool): Wether to start the instance as a headless browser (background, no GUI) or not. Defaults to False
+	
 	Yields:
 		selenium.webdriver.Chrome: The selenium webdriver instance used for the test
 	"""
 	test_start = time()
 
+	# Default Browser flags
 	chrome_flags = [
 		"--disable-extensions",
 		"start-maximized",
@@ -154,10 +237,12 @@ def StartTest():
 		"--ignore-ssl-errors",
 		#"--no-sandbox # linux only,
 		"--log-level=3",	# Start from CRITICAL
-		"--headless",
 	]
-	chrome_options = Options()
+	
+	if not visible: chrome_flags.append("--headless")
 
+	# Instantiate the Options object
+	chrome_options = Options()
 	for flag in chrome_flags: chrome_options.add_argument(flag)
 
 	# To remove '[WDM]' logs (https://github.com/SergeyPirogov/webdriver_manager#configuration)
@@ -166,16 +251,26 @@ def StartTest():
 
 	# To remove "DevTools listening on ws:..." message (https://stackoverflow.com/a/56118790/8965861)
 	chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
-	
-	__driver = webdriver.Chrome( ChromeDriverManager(log_level=0).install(), options=chrome_options )
-	__driver.set_window_size(1920, 1080)
 
-	try:
+	__driver = None
+
+	domain = urlparse(url).netloc.split(":")[0]
+	errorManager = DebugManager(f"PICO_{domain}_{datetime.now().strftime('%Y%m%d-%H%M%S')}")
+
+	try:	
+		__driver = webdriver.Chrome( ChromeDriverManager(log_level=0).install(), options=chrome_options )
+		__driver.set_window_size(1920, 1080)
+		
+		if visible: __driver.maximize_window()
+
+		errorManager.setDriver(__driver)
+		
 		yield __driver
 
 	except WebDriverException as ex:
 		print("------------------- WebDriverException -------------------")
 
+		# errorManager.dumpException()
 
 		if "net::ERR_CONNECTION_TIMED_OUT" in ex.msg:
 			print("FATAL ERROR - La connessione con il server è andata in Timeout. \nCodice di errore net::ERR_CONNECTION_TIMED_OUT\n")
@@ -185,31 +280,34 @@ def StartTest():
 
 		elif re.match(pattern="unknown error: cannot find .* binary", string=ex.msg):
 			browser = re.match(pattern="unknown error: cannot find (.*?) binary", string=ex.msg).group(1)
-			# print(f"Il browser '{browser}' non risulta installato sulla macchina")
 
 			raise BrowserNotInstalledException(browser)
 
 		else:
-			print(f"OTHER ERROR - Message: {ex.msg}")
+			DebugManager.dump("PICO-UnexpectedExceptionHandler", __driver, with_screenshot=True, with_stacktrace=True, print_stacktrace=True)
+			print(f"OTHER ERROR - Message: {ex}")
 			# print(f"sys.exc_info(): {sys.exc_info()}")
-			print("Stacktrace:")
-			traceback.print_stack()
+			# print("Stacktrace:")
+			# traceback.print_stack()
+			print("Stacktrace 2:")
+			print(traceback.format_exc())
 			print("\n")
 	
-		# input("Premi INVIO per continuare")
-
 	except Exception as exception:
+		DebugManager.dump("PICO-UnexpectedExceptionHandler", __driver, with_screenshot=True, with_stacktrace=True, print_stacktrace=True)
 		print("------------------- Exception -------------------")
-		print(f"Message: {exception.msg}")
-		print(f"sys.exc_info(): {sys.exc_info()}")
-	
-		# input("Premi INVIO per continuare")
-
+		print(f"Message: {exception}")
+		# print(f"sys.exc_info(): {sys.exc_info()}")
+		# print("Stacktrace:")
+		# errorManager.dumpException()
 
 	finally:
-		print("\n\n+++++++++++++++++++ DESTROYING DRIVER... PLEASE WAIT... +++++++++++++++++++\n")
-		__driver.quit()
-		print("\n\n+++++++++++++++++++ DRIVER SUCCESSFULLY DESTROYED! +++++++++++++++++++")
+		# input("DEBUG MODE - Premi INVIO per distruggere il driver")
+	
+		if __driver is not None: 
+			print("\n\n+++++++++++++++++++ DESTROYING DRIVER... PLEASE WAIT... +++++++++++++++++++\n")
+			__driver.quit()
+			print("\n\n+++++++++++++++++++ DRIVER SUCCESSFULLY DESTROYED! +++++++++++++++++++")
 
 		test_end = time()
 		print(f"Durata test: {timedelta(seconds=int(test_end - test_start))}")
@@ -217,9 +315,98 @@ def StartTest():
 		print()
 
 
+# OLD 
+# @contextmanager
+# def StartTest():
+# 	"""
+# 	Wrapper around the tests.
+# 	This ensures the test is ALWAYS ended gracefully, doing some clean-up before exiting (https://book.pythontips.com/en/latest/context_managers.html#implementing-a-context-manager-as-a-generator)
+
+# 	Yields:
+# 		selenium.webdriver.Chrome: The selenium webdriver instance used for the test
+# 	"""
+# 	test_start = time()
+
+# 	chrome_flags = [
+# 		"--disable-extensions",
+# 		"start-maximized",
+# 		"--disable-gpu",
+# 		"--ignore-certificate-errors",
+# 		"--ignore-ssl-errors",
+# 		#"--no-sandbox # linux only,
+# 		"--log-level=3",	# Start from CRITICAL
+# 		"--headless",
+# 	]
+# 	chrome_options = Options()
+
+# 	for flag in chrome_flags: chrome_options.add_argument(flag)
+
+# 	# To remove '[WDM]' logs (https://github.com/SergeyPirogov/webdriver_manager#configuration)
+# 	os.environ['WDM_LOG_LEVEL'] = '0'
+# 	os.environ['WDM_PRINT_FIRST_LINE'] = 'False'
+
+# 	# To remove "DevTools listening on ws:..." message (https://stackoverflow.com/a/56118790/8965861)
+# 	chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
+
+# 	__driver = None
+
+# 	try:
+# 		__driver = webdriver.Chrome( ChromeDriverManager(log_level=0).install(), options=chrome_options )
+# 		__driver.set_window_size(1920, 1080)
+
+# 		yield __driver
+
+# 	except WebDriverException as ex:
+# 		print("------------------- WebDriverException -------------------")
+# 		__driver.save_screenshot("debug_pico-lastErrorBeforeException.png")
 
 
-def singleNodeTest (url):
+# 		if "net::ERR_CONNECTION_TIMED_OUT" in ex.msg:
+# 			print("FATAL ERROR - La connessione con il server è andata in Timeout. \nCodice di errore net::ERR_CONNECTION_TIMED_OUT\n")
+		
+# 		elif "net::ERR_CONNECTION_REFUSED" in ex.msg:
+# 			print("FATAL ERROR - Impossibile contattare il server. \nCodice di errore net::ERR_CONNECTION_REFUSED\n")
+
+# 		elif re.match(pattern="unknown error: cannot find .* binary", string=ex.msg):
+# 			browser = re.match(pattern="unknown error: cannot find (.*?) binary", string=ex.msg).group(1)
+# 			# print(f"Il browser '{browser}' non risulta installato sulla macchina")
+
+# 			raise BrowserNotInstalledException(browser)
+
+# 		else:
+# 			print(f"OTHER ERROR - Message: {ex.msg}")
+# 			# print(f"sys.exc_info(): {sys.exc_info()}")
+# 			__driver.save_screenshot(f"debug_pico-{datetime.now().strftime('%Y%m%d-%H%M%S')}lastErrorBeforeException.png")
+
+# 			print("Stacktrace:")
+# 			traceback.print_stack()
+# 			print("\n")
+	
+# 		# input("Premi INVIO per continuare")
+
+# 	except Exception as exception:
+# 		print("------------------- Exception -------------------")
+# 		print(f"Message: {exception.msg}")
+# 		print(f"sys.exc_info(): {sys.exc_info()}")
+	
+# 		# input("Premi INVIO per continuare")
+# 		__driver.save_screenshot("debug_pico-lastErrorBeforeException.png")
+
+
+# 	finally:
+# 		if __driver is not None: 
+# 			print("\n\n+++++++++++++++++++ DESTROYING DRIVER... PLEASE WAIT... +++++++++++++++++++\n")
+# 			__driver.quit()
+# 			print("\n\n+++++++++++++++++++ DRIVER SUCCESSFULLY DESTROYED! +++++++++++++++++++")
+
+# 		test_end = time()
+# 		print(f"Durata test: {timedelta(seconds=int(test_end - test_start))}")
+
+# 		print()
+
+
+
+def singleNodeTest (url, visible=False):
 	"""
 	Starts the browser
 	"""
@@ -242,7 +429,7 @@ def singleNodeTest (url):
 
 	print("Ok")
 
-	with StartTest() as driver:
+	with StartTest(url, visible) as driver:
 		driver.get(url)
 
 		WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#origin[name='departureStation']")))
@@ -280,12 +467,22 @@ def singleNodeTest (url):
 			
 			alert.accept()
 
+			DebugManager.dump("PICO_alertAfterSearch", driver, with_screenshot=True)
 			return False
 		except TimeoutException:
 			# No errors
 			pass
 
-		WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#searchRequestForm #refreshButton")))
+		try:
+			WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#searchRequestForm #refreshButton")))
+		except (TimeoutException) as ex:
+			if driver.find_elements_by_id("errorExc"):
+				errore = driver.find_element_by_id("errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
+
+				print(f"ERRORE ({errore})")
+
+				DebugManager.dump("PICO_Timeout-Error_Search_", driver, with_screenshot=True)
+				return False
 
 		search_end = time()
 		print(f"OK (durata ricerca: {timedelta(seconds=int(search_end - search_start))})")
@@ -295,21 +492,21 @@ def singleNodeTest (url):
 		print("PAGINA - Lista soluzioni trovate:")
 		print("\tControllo soluzioni > 0: \t\t", end="", flush=True)
 
-		if not driver.find_element_by_id("accordion"):
-			print("FAILED")
+		if not driver.find_elements_by_id("accordion"):
+			print("ERRORE (Nessuna soluzione trovata)")
 
-			print("\nNessuna soluzione trovata per la tratta:")
+			# print("\nNessuna soluzione trovata per la tratta:")
 
-			result_partenza = driver.find_element_by_css_selector("#collapseViaggio input[name='departureStation']").get_attribute("innerText").strip()
-			result_arrivo = driver.find_element_by_css_selector("#collapseViaggio input[name='arrivalStation']").get_attribute("innerText").strip()
-			result_data = driver.find_element_by_css_selector("#collapseViaggio input[id='calenderId1Text']").get_attribute("innerText").strip()
-			result_orario = driver.find_element_by_css_selector("#collapseViaggio input[id='departureTimeText']").get_attribute("innerText").strip()
+			# result_partenza = driver.find_element_by_css_selector("#collapseViaggio input[name='departureStation']").get_attribute("innerText").strip()
+			# result_arrivo = driver.find_element_by_css_selector("#collapseViaggio input[name='arrivalStation']").get_attribute("innerText").strip()
+			# result_data = driver.find_element_by_css_selector("#collapseViaggio input[id='calenderId1Text']").get_attribute("innerText").strip()
+			# result_orario = driver.find_element_by_css_selector("#collapseViaggio input[id='departureTimeText']").get_attribute("innerText").strip()
 
-			print(f"\tStazione di partenza: {result_partenza}")
-			print(f"\tStazione di arrivo: {result_arrivo}\n")
+			# print(f"\tStazione di partenza: {result_partenza}")
+			# print(f"\tStazione di arrivo: {result_arrivo}\n")
 
-			print(f"\tData di partenza: {result_data}")
-			print(f"\tOrario di partenza: {result_orario}\n")
+			# print(f"\tData di partenza: {result_data}")
+			# print(f"\tOrario di partenza: {result_orario}\n")
 
 
 			return False
@@ -336,7 +533,7 @@ def singleNodeTest (url):
 			"ORARIO_PARTENZA": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(1) > div.split > span.bottom.text-center").get_attribute("innerText").strip(),
 			"ORARIO_ARRIVO": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(3) > div.split > span.bottom.text-center").get_attribute("innerText").strip(),
 			"DURATA": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) > div.descr.duration.text-center").get_attribute("innerText").strip(),
-			"NUMERO_CAMBI": re.search("Cambi: ([0-9]+)", mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) div.change").get_attribute("innerText").strip()).group(1),
+			"NUMERO_CAMBI": re.search("Cambi: ([0-9]+)", mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) div.change").get_attribute("innerText").strip()).group(1) if mid_travelSolution.find_elements_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) div.change") else 0,
 			"ELENCO_TRENI": " -> ".join([ elem.find_element_by_css_selector(".train > .descr").get_attribute("innerText").strip() for elem in mid_travelSolution.find_elements_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(5) > .trainOffer") ]),
 			"PREZZO_DA": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(6) > span > div > span.price").get_attribute("innerText").strip(),
 		}
@@ -354,19 +551,34 @@ def singleNodeTest (url):
 		# Utilizzo Javascript per cliccare perchè l'elemento non è interagibile utilizzando Selenium
 		pulsante_continua = mid_priceGrid.find_element_by_css_selector("div.row > div > input.btn.btn-primary.btn-lg.btn-block[type='button']")
 		driver.execute_script("arguments[0].click();", pulsante_continua)
-		print ("OK\n")
+		
+		try:
+			WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.ID, "firstPanel")))
+		except TimeoutException:
+			DebugManager.dump("PICO-TimeoutPrenotazione", driver, with_screenshot=True)
+			if driver.find_elements_by_id("errorExc"):
+				errore_text = driver.find_element_by_id("errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
+
+				print(f"ERRORE ({errore_text})")
+				return False
+			elif driver.find_elements_by_id("msgErrorCredentials"):
+				print(f"ERRORE - Comparso codice di errore. Vedere screenshot salvato")
+				return False
+			
+			print("ERRORE - La pagina di prenotazione non ha caricato entro 60 secondi.")
+			
+			return False
+		else:	
+			print ("OK\n")
 
 
 
 		print("PAGINA - Inserimento dati prenotazione:", flush=True)
-		print("\tCaricamento pagina: \t\t\t", end="", flush=True)
-
-		print ("OK")
 
 		pannello_autenticazione = driver.find_element_by_id("firstPanel")
 		pannello_passeggeri = driver.find_element_by_id("startTravelDetails")
 
-		print("\n\tClicco su 'Procedi senza registrazione': \t", end="", flush=True)
+		print("\tClicco su 'Procedi senza registrazione': \t", end="", flush=True)
 		pannello_autenticazione.find_element_by_id("nonSonoRegistrato").click()
 		WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.ID, "emailId")))
 		print ("OK")
@@ -437,6 +649,7 @@ def singleNodeTest (url):
 					continue
 			
 			except NoSuchElementException:
+				DebugManager.dump("PICO-ErroreDopoPrenotazione", driver, with_screenshot=True)
 				if driver.find_elements_by_id("errorExc"):
 					errore_transazione_text = driver.find_element_by_id("errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
 
@@ -444,7 +657,7 @@ def singleNodeTest (url):
 
 				url_now = driver.current_url 
 				if "search.do" in url_now:
-					print("Il browser e' stato reindirizzato alla pagina di ricerca! Interrompo il test")
+					print("\nATTENZIONE - Il browser e' stato reindirizzato alla pagina di ricerca! Interrompo il test")
 
 				elif url_before != url_now: 
 					print(f"\nANOMALIA - L'URL e' cambiato dopo aver cliccato 'Continua': \n\tPrima: {url_before}\n\tDopo: {url_now}")
@@ -494,26 +707,37 @@ def singleNodeTest (url):
 			WebDriverWait(driver, 60).until(EC.url_contains(url="B2CWeb/createTicket.do"))
 			print("OK")
 
-			popup = driver.find_element_by_id("popupInfo")
-			popup_text = popup.find_element_by_css_selector(".modal-dialog > .modal-content > .modal-body > .inner-body").get_attribute("innerText").strip()
-
-			print("\tControllo popup: \t\t\t", end="", flush=True)
-
-			if popup_text != "Operazione conclusa con successo!":
-				print(f"ERRORE - Messaggio di conferma NON trovato ({popup_text})")
-
-				return False
-			else: 
-				print(f"OK - Messaggio di conferma RICEVUTO ({popup_text})")
-				
-				return True
-
 		except TimeoutException:
 			# Se la pagina non si carica
 			print("ERRORE")
 
 			return False
-	
+
+
+		print("\tControllo popup: \t\t\t", end="", flush=True)
+		
+		try:
+			popup = WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.ID, "popupInfo")))
+			popup_text = popup.find_element_by_css_selector(".modal-dialog > .modal-content > .modal-body > .inner-body").get_attribute("innerText").strip()
+
+			if popup_text in ["Operazione conclusa con successo!"]:
+				print(f"OK - Messaggio di conferma RICEVUTO ({popup_text})")
+
+				return True
+			else: 
+				print(f"ERRORE - Messaggio di conferma NON trovato ({popup_text})")
+				
+				DebugManager.dump("PICO-ConfermaPrenotazione", driver, with_screenshot=True)
+				return False
+		except TimeoutException:
+			# Se la pagina non si carica
+			print("ERRORE")
+
+			DebugManager.dump("PICO-ErrorePrenotazione", driver, with_screenshot=True)
+			return False
+
+
+
 	return False
 
 
@@ -521,7 +745,7 @@ if __name__ == "__main__":
 	program_start = time()
 
 	APP_ID = "Test_Mattutini"
-	APP_VERSION = "1.4.0"
+	APP_VERSION = "0.5.4"
 	APP_DATA = {}
 
 	FILE_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -674,9 +898,13 @@ if __name__ == "__main__":
 
 	stazioni = parser.add_argument_group('Opzioni di ricerca')
 
-	stazioni.add_argument("-A", "--stazione-arrivo", help=f"Indica la stazione di arrivo (default={DEFAULT_STAZIONI['arrivo']})", dest="stazione_arrivo", default=DEFAULT_STAZIONI["arrivo"], metavar="stazione")
+	stazioni.add_argument("-A", "--stazione-arrivo", help=f"Indica la stazione di arrivo (default=%(default)s)", dest="stazione_arrivo", default=DEFAULT_STAZIONI["arrivo"], metavar="stazione")
 							   
-	stazioni.add_argument("-P", "--stazione-partenza", help=f"Indica la stazione di partenza (default={DEFAULT_STAZIONI['partenza']})", dest="stazione_partenza", default=DEFAULT_STAZIONI["partenza"], metavar="stazione")
+	stazioni.add_argument("-P", "--stazione-partenza", help=f"Indica la stazione di partenza (default=%(default)s)", dest="stazione_partenza", default=DEFAULT_STAZIONI["partenza"], metavar="stazione")
+	
+	stazioni.add_argument("-G", "--giorno-partenza", help=f"Indica la data di partenza (default: %(default)s)", dest="data_partenza", default=(datetime.now() + relativedelta(days=5)).strftime('%d-%m-%Y'), metavar="data")
+	
+	stazioni.add_argument("-O", "--ora-partenza", help=f"Indica l'ora di partenza (default: %(default)s)", dest="ora_partenza", default="12", metavar="ora")
 
 
 	files = parser.add_argument_group('Opzioni di configurazione')
@@ -693,6 +921,9 @@ if __name__ == "__main__":
 
 	altre_opzioni.add_argument("-V", "--version", help="Mostra la versione del programma ed esce",
 						action='version', version=f"%(prog)s {APP_VERSION}")
+
+	altre_opzioni.add_argument("-X", "--show-browser", help="Rende visibile il browser durante i test. Utilizzare unicamente per debug, non utilizzare se non si sa esplicitamente cosa si sta facendo! Non si assicura la veridicita' dei test ne' il funzionamento dello script dopo aver abilitato tale opzione!",
+						action='store_true', dest="show_browser")
 
 
 	CLI_ARGS = parser.parse_args()
@@ -716,10 +947,11 @@ if __name__ == "__main__":
 		--------------------------------------------------------------------------------------------
 	"""
 	# Infrastruttura
-	cache = Cache("Test_Mattutini_Nodi_Infrastruttura.yaml", apiVersion=APP_VERSION)
+	cache = Cache("Test_Mattutini_Nodi_Infrastruttura.yaml", apiVersion=APP_VERSION, maximumTime=604800)
 	APP_DATA = cache.getCache()
-	
-	if not APP_DATA or CLI_ARGS.force_update:
+	print("Percorso Cache: " + cache.getCacheFilename())
+
+	if not APP_DATA or CLI_ARGS.force_update or not APP_DATA["data"]:
 		print("Avvio aggiornamento del file di configurazione infrastrutturale...")
 
 		if PortalePicoGTS.isReachable():
@@ -727,7 +959,7 @@ if __name__ == "__main__":
 				cache.setCache(Trenitalia.getInfrastructure())
 				APP_DATA = cache.getCache()
 
-				if not "data" in APP_DATA:
+				if not "data" in APP_DATA or not APP_DATA["data"]:
 					print("Nessun dato ricavato dall'analisi del portale")
 					exit(1)
 			
@@ -752,7 +984,7 @@ if __name__ == "__main__":
 				exit(99)
 		
 			print("Uso configurazione vecchia... Verra' aggiornata appena sara' raggiungibile il portale..\n")
-			APP_DATA = cache.getCache(check_valid=False)
+			APP_DATA = cache.getCache(check_expired=False)
 
 
 	nodes = APP_DATA["data"]
@@ -773,8 +1005,8 @@ if __name__ == "__main__":
 	TRAVEL_DETAILS = {
 		"departure": CLI_ARGS.stazione_partenza,
 		"arrival": CLI_ARGS.stazione_arrivo,
-		"travel_date": (datetime.now() + relativedelta(days=5)).strftime('%d-%m-%Y'),
-		"travel_time": "12"
+		"travel_date": CLI_ARGS.data_partenza,
+		"travel_time": CLI_ARGS.ora_partenza
 	}	
 
 
@@ -835,6 +1067,10 @@ if __name__ == "__main__":
 	risultati_test = {}
 
 	try:
+		if not "Pico" in nodes:
+			print("Nessuna configurazione presente corrispondente alla voce 'Pico'")
+			sys.exit(2)
+
 		for ambiente in CLI_ARGS.ambienti:
 			print("-------------------------------------------------------------------------------")
 			print (f"Test di acquisto per {ambiente}")
@@ -854,7 +1090,7 @@ if __name__ == "__main__":
 			for index, url in enumerate(ENDPOINT):
 				print(f"{ambiente} B2C [nodo {index+1} di {len(ENDPOINT)}] - {url}")
 				
-				test_success = singleNodeTest(url)
+				test_success = singleNodeTest(url, CLI_ARGS.show_browser)
 				
 
 				risultati_test[ambiente]["risultati"].append({

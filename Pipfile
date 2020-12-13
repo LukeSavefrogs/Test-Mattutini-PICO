@@ -12,6 +12,7 @@ webdriver-manager = "*"
 PyAutoGUI = "*"
 PyYAML = "*"
 pyinstaller = "*"
+colorama = "*"
 
 [dev-packages]
 

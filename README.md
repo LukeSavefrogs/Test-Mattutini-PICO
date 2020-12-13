@@ -55,7 +55,7 @@ Questo script si occupa di effettuare il **test di acquisto** sui nodi infrastru
 				<code>-h</code>
 			</td>
 			<td>
-				Mostra una guida su come utilizzare lo script
+				Mostra una <strong>guida</strong> su come utilizzare lo script
 			</td>
 		</tr>
 		<tr>
@@ -75,8 +75,32 @@ Questo script si occupa di effettuare il **test di acquisto** sui nodi infrastru
 			</td>
 		</tr>
 		<tr>
+			<td>
+				<code>-G</code>
+			</td>
+			<td>
+				Specifica la <strong>data</strong> di <strong>partenza</strong>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<code>-O</code>
+			</td>
+			<td>
+				Specifica l'<strong>ora</strong> di <strong>partenza</strong>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<code>-f</code>
+			</td>
+			<td>
+				<strong>Forza</strong> l'aggiornamento della <strong>configurazione</strong> dal PortalePicoGTS
+			</td>
+		</tr>
+		<tr>
 			<td colspan="2">
-				<i>Altre informazioni nel display di aiuto attivabile con <code>-h</code>...</i>
+				<i>Altre informazioni e opzioni avanzate nel display di aiuto attivabile con <code>-h</code>...</i>
 			</td>
 		</tr>
 	</tbody>

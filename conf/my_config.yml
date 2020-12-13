@@ -1,0 +1,24 @@
+---
+# Configurazione carta (per pagamento sulla pagina di N&TS)
+card:
+  firstName:  Bruce
+  lastName:   Lee
+  number:     4539999999999993
+  exp_date:   12/2022
+  csc:        111
+
+
+# Configurazione dati passeggero da inserire in fase di prenotazione
+passenger:
+  firstName:  Bruce
+  lastName:   Qui
+  email:      test.email@test.com
+  tel_number: 0123456789
+  birth_date: 11/09/2001
+
+
+# E' possibile personalizzare la tratta del viaggio come di seguito
+travel:
+  departure:  Mantova
+  arrival:    Torino
+  

@@ -1,3 +1,4 @@
+import traceback
 from portalePICO.main import PortalePicoGTS
 from os.path import expanduser, join, exists
 from datetime import datetime
@@ -10,18 +11,25 @@ import yaml
 class Trenitalia(object):
 	@staticmethod
 	def getInfrastructure():
-		print ("<PortalePicoGTS-PyScraper>")
-
+		nodi = {}
+		
 		# --------------------------------------------------------------------------
 		#							Scrape data
 		# --------------------------------------------------------------------------
-		gts = PortalePicoGTS()
-		gts.login("ictsmoperator", "Pico.GTS")
+		print ("<PortalePicoGTS-PyScraper>")
+		try:
+			gts = PortalePicoGTS()
+			gts.login("ictsmoperator", "Pico.GTS")
 
-		nodi = gts.getNodes()
-		gts.close()
+			nodi = gts.getNodes()
+			gts.close()
+		except Exception as e:
+			print("ERRORE - " + str(e))
+			print("Stacktrace:")
+			traceback.print_stack()
 
-		print()
-		print("</PortalePicoGTS-PyScraper>")
+		finally:
+			print()
+			print("</PortalePicoGTS-PyScraper>")
 
 		return nodi

@@ -1,4 +1,5 @@
 from os import environ
+import traceback
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
@@ -77,12 +78,20 @@ class PortalePicoGTS(object):
 
 
 	def close(self):
-		print("Logging out: \t", end="", flush=True)
-		self.logout()
-		self.waitUntilReady()
-		self.driver.quit()
-		print("OK")
-
+		# print("Logging out: \t", end="", flush=True)
+		try:
+			print("Logging out: \t", flush=True)
+			self.logout()
+			print("Waiting: \t", flush=True)
+			self.waitUntilReady()
+			print("Quitting: \t", flush=True)
+			self.driver.quit()
+		except Exception as e:
+			print("ERRORE - " + str(e))
+			print("Stacktrace:")
+			traceback.print_stack()
+		else:
+			print("OK")
 
 
 	def getNodes(self):
@@ -171,9 +180,11 @@ class PortalePicoGTS(object):
 		
 		return mapping_all_nodes
 
+
 	@staticmethod
 	def isReachable():
 		return uri_exists_stream(BASE_URL)
+
 
 	@staticmethod
 	def getUrl():
