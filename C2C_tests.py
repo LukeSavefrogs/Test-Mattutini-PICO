@@ -596,6 +596,10 @@ def singleNodeTest_C2C (url):
 						modal["buttons"]["Close"].click()
 						continue
 					
+					elif modal["title"] == "Please note" and modal["body"] == "Some of your journey results continue into another day":
+						# print(f"INFO - Una parte del viaggio verra' fatta in un altro giorno ('{ modal['body'] }')")
+						modal["buttons"]["Close"].click()
+
 					else:
 						driver.save_screenshot(f"C2C_Timeout-Unexpected_Modal_{datetime.now().strftime('%Y%m%d-%H%M%S')}.png")
 						
@@ -877,7 +881,7 @@ if __name__ == "__main__":
 	program_start = time()
 
 	APP_ID = "Test_Mattutini_C2C"
-	APP_VERSION = "0.3.1"
+	APP_VERSION = "0.3.2"
 	APP_DATA = {}
 
 	FILE_PATH = os.path.dirname(os.path.realpath(__file__))

@@ -752,29 +752,6 @@ if __name__ == "__main__":
 	DEBUG = True
 
 
-
-	# DEFAULT_CONFIGURATION = {
-	# 	"card":{
-	# 		"firstName": 	"PICO",
-	# 		"lastName": 	"Trenitalia",
-	# 		"number": 		4539999999999993,
-	# 		"exp_date": 	"12/2022",
-	# 		"csc": 			111
-	# 	},
-	# 	"passenger":{
-	# 		"firstName": 	"Test",
-	# 		"lastName": 	"User",
-	# 		"email": 		"test.email@test.com",
-	# 		"tel_number": 	"0123456789",
-	# 		"birth_date": 	"11/09/2001"
-	# 	},
-	# 	"travel":{
-	# 		"departure": 	"Frascati",
-	# 		"arrival": 		"Milano Centrale"
-	# 	}
-	# }
-
-
 	DEFAULT_AMBIENTI = [ 
 		"Certificazione", 
 		"Correttiva", 
@@ -828,6 +805,15 @@ if __name__ == "__main__":
 		f"Script per il testing automatico degli ambienti NOPROD di PICO - Versione {APP_VERSION}\n"
 	)
 
+	EXAMPLE_CONF_FILE = ""
+	# with open(utility.getCorrectPath(os.path.join("conf","mock_card.yml")), 'r') as stream:
+	# 	line = stream.readline()
+	# 	EXAMPLE_CONF_FILE += line
+
+	# 	while line:
+	# 		line += stream.readline()
+
+		
 	# Costruisco il footer
 	FOOTER = textwrap.dedent(f'''\
 		------------
