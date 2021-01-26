@@ -1,8 +1,14 @@
-test_marius/
+# Pyinstaller specific
 log/
 build/
-__pycache__/
-PortalePICO - GetNodes.py
-
+specs/
 *.spec
+
+__pycache__/
 .vscode
+
+# Application specific
+test_marius/
+*.log
+Debug*.png
+PortalePICO - GetNodes.py

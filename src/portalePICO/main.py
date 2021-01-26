@@ -80,11 +80,9 @@ class PortalePicoGTS(object):
 	def close(self):
 		# print("Logging out: \t", end="", flush=True)
 		try:
-			print("Logging out: \t", flush=True)
+			print("Logging out: \t", end="", flush=True)
 			self.logout()
-			print("Waiting: \t", flush=True)
 			self.waitUntilReady()
-			print("Quitting: \t", flush=True)
 			self.driver.quit()
 		except Exception as e:
 			print("ERRORE - " + str(e))

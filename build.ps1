@@ -1,10 +1,13 @@
+$remote_dir = "\\172.30.62.6\gts\sharedScripts\Test di Acquisto"
+
 pyinstaller `
 	--clean `
 	--name "Test_acquisto-PICO" `
 	--log-level=WARN `
 	--onefile `
 	--noconfirm `
-	--add-data="./conf/;./conf/" .\pico_tests.py;
+	--specpath "specs" `
+	--add-data="../src/conf/;./conf/" .\src\pico_tests.py;
 
 pyinstaller `
 	--clean `
@@ -12,8 +15,9 @@ pyinstaller `
 	--log-level=WARN `
 	--onefile `
 	--noconfirm `
-	--add-data="./conf/;./conf/" .\pico_tests.py;
+	--specpath "specs" `
+	--add-data="../src/conf/;./conf/" .\src\C2C_tests.py;
 
 if ($?) { 
-	Copy-Item .\dist\Test_acquisto-* "\\172.30.62.6\gts\sharedScripts\Test di Acquisto";
+	Copy-Item .\dist\Test_acquisto-* "$remote_dir";
 }

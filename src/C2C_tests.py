@@ -14,7 +14,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.microsoft import IEDriverManager
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, WebDriverException
 
 

@@ -23,6 +23,7 @@ class Trenitalia(object):
 
 			nodi = gts.getNodes()
 			gts.close()
+			
 		except Exception as e:
 			print("ERRORE - " + str(e))
 			print("Stacktrace:")
