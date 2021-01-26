@@ -877,12 +877,28 @@ def singleNodeTest_C2C (url):
 		return False
 
 
+def repstr(string: str, length: int):
+	"""Repeat a string N times
+
+	Args:
+		string (str): String/character to be repeated
+		length (int): Number of times to repeat the string
+
+	Returns:
+		[type]: [description]
+	"""
+	return (string * length)[0:length]
+
 if __name__ == "__main__":
 	program_start = time()
 
 	APP_ID = "Test_Mattutini_C2C"
 	APP_VERSION = "0.3.2"
 	APP_DATA = {}
+	
+	CONSOLE_WIDTH = 130
+
+	PROJECT_NAME = "C2C"
 
 	FILE_PATH = os.path.dirname(os.path.realpath(__file__))
 	DEBUG = True
@@ -1042,10 +1058,10 @@ if __name__ == "__main__":
 
 	if DEBUG: 
 		print("----------------------------------------------------------------------------------------------------------------------------------\n	")
-		print(f"TEST MATTUTINI PICO - VERSIONE DI SVILUPPO v.{APP_VERSION}".center(130))
+		print(f"TEST MATTUTINI PICO - VERSIONE DI SVILUPPO v.{APP_VERSION}".center(CONSOLE_WIDTH))
 		print("")
-		print("In fase di test si prega di lanciare il programma con 'nomeprogramma.exe | Tee-Object -Append -FilePath \"terminal.log\"'".center(130))
-		print("Questo file andra' poi condiviso se vengono trovati degli errori nel programma\n".center(130))
+		print("In fase di test si prega di lanciare il programma con 'nomeprogramma.exe | Tee-Object -Append -FilePath \"terminal.log\"'".center(CONSOLE_WIDTH))
+		print("Questo file andra' poi condiviso se vengono trovati degli errori nel programma\n".center(CONSOLE_WIDTH))
 		print("----------------------------------------------------------------------------------------------------------------------------------\n	")
 
 
@@ -1070,12 +1086,12 @@ if __name__ == "__main__":
 
 				if not "data" in APP_DATA:
 					print("Nessun dato ricavato dall'analisi del portale")
-					exit(1)
+					sys.exit(1)
 			
 			except BrowserNotInstalledException as e:
 				print(f"ERRORE CRITICO - Il browser '{e.browser}' non è installato sul sistema. Procedura annullata")
 
-				exit(2)
+				sys.exit(2)
 
 			except Exception as e:
 				print(f"CRITICAL ERROR - Fallito update infrastruttura con errore: {e}")
@@ -1090,7 +1106,7 @@ if __name__ == "__main__":
 			elif not cache.exists():
 				print("FATAL ERROR - Per la prima configurazione e' mandatoria la disponibilita del portale per prendere i nodi infrastrutturali\n")
 				
-				exit(99)
+				sys.exit(99)
 		
 			print("Uso configurazione vecchia... Verra' aggiornata appena sara' raggiungibile il portale..\n")
 			APP_DATA = cache.getCache(check_expired=False)
@@ -1129,12 +1145,12 @@ if __name__ == "__main__":
 			print("TEST ABORTITO - File di Configurazione Utente non trovato")
 			print(e)
 
-			exit(2)
+			sys.exit(2)
 		except yaml.YAMLError as e:
 			print("TEST ABORTITO - File di Configurazione Utente non valido")
 			print(e)
 
-			exit(2)
+			sys.exit(2)
 
 
 		if "card" in USER_CONFIGURATION:
@@ -1147,16 +1163,21 @@ if __name__ == "__main__":
 			TRAVEL_DETAILS = merge_dicts(TRAVEL_DETAILS, USER_CONFIGURATION["travel"])
 
 			
-		# exit()
-		
+		# sys.exit()
 	
-	VALID_ENVIRONMENTS  = [ key for key in nodes["C2C"].keys() if "VIP_EXT" in nodes["C2C"][key] ]
+
+	if not PROJECT_NAME in nodes:
+		print (f"Progetto '{PROJECT_NAME}' non esistente")
+	
+	VALID_ENVIRONMENTS  = [ key for key in nodes[PROJECT_NAME].keys() if "VIP_EXT" in nodes[PROJECT_NAME][key] ]
 	
 	if CLI_ARGS.show_available_environments: 
 		print("Ambienti disponibili per il test:")
 		for ambiente in VALID_ENVIRONMENTS: print(f"\t- {ambiente}")
 		
-		exit(0)
+		print("")
+		
+		sys.exit(0)
 
 
 	"""
@@ -1189,11 +1210,11 @@ if __name__ == "__main__":
 			print("-------------------------------------------------------------------------------")
 			print (f"Test di acquisto per {ambiente}")
 
-			if not ambiente in nodes["C2C"]:
+			if not ambiente in nodes[PROJECT_NAME]:
 				print (f"\nATTENZIONE - L'ambiente '{ambiente}' non esiste o il file di configurazione potrebbe non essere aggiornato.")
 				continue
 
-			ENDPOINT = [ jvm["urls"]["https"] for jvm in nodes["C2C"][ambiente]["VIP_EXT"]["VIP_EXT"] ]
+			ENDPOINT = [ jvm["urls"]["https"] for jvm in nodes[PROJECT_NAME][ambiente]["VIP_EXT"]["VIP_EXT"] ]
 			
 			if not ambiente in risultati_test:
 				risultati_test[ambiente] = {
@@ -1236,21 +1257,23 @@ if __name__ == "__main__":
 
 	program_end = time()
 
+	SEPARATOR = repstr("-", CONSOLE_WIDTH)
+
 	print("\n\n")
-	print("----------------------------------------------------------------------------------------------------------------------------------  	")
-	print("Riepilogo Generale".center(130))
-	print("----------------------------------------------------------------------------------------------------------------------------------  	")
+	print(SEPARATOR)
+	print("Riepilogo Generale".center(CONSOLE_WIDTH))
+	print(SEPARATOR)
 	print("")
-	print("---------------------------".center(130))
-	print("|  Statistiche generiche  |".center(130))
-	print("---------------------------".center(130))
+	print("---------------------------".center(CONSOLE_WIDTH))
+	print("|  Statistiche generiche  |".center(CONSOLE_WIDTH))
+	print("---------------------------".center(CONSOLE_WIDTH))
 	print("")
-	print(f"- Durata complessiva test:     {timedelta(seconds=int(program_end - all_test_start))} -".center(130))
-	print(f"- Durata totale programma:     {timedelta(seconds=int(program_end - program_start))} -".center(130))
+	print(f"- Durata complessiva test:     {timedelta(seconds=int(program_end - all_test_start))} -".center(CONSOLE_WIDTH))
+	print(f"- Durata totale programma:     {timedelta(seconds=int(program_end - program_start))} -".center(CONSOLE_WIDTH))
 	print("\n\n")
-	print("--------------------".center(130))
-	print("|  Risultati Test  |".center(130))
-	print("--------------------".center(130))
+	print("--------------------".center(CONSOLE_WIDTH))
+	print("|  Risultati Test  |".center(CONSOLE_WIDTH))
+	print("--------------------".center(CONSOLE_WIDTH))
 
 	for ambiente in risultati_test:
 		print(f"{ambiente.title()}:")
@@ -1265,15 +1288,15 @@ if __name__ == "__main__":
 	if not all([ risultato["result"] for ambiente in risultati_test for risultato in risultati_test[ambiente]["risultati"] ]):
 		pass
 		# print("\n\n")
-		# print("Aiuto".center(130))
-		# print("- Controlla la log per vedere dove sono FALLITI i test.. -".center(130))
-		# print("- Puoi rilanciare i test falliti semplicemnte rilanciando il programma con l'ambiente corrispondente come parametro -".center(130))
+		# print("Aiuto".center(CONSOLE_WIDTH))
+		# print("- Controlla la log per vedere dove sono FALLITI i test.. -".center(CONSOLE_WIDTH))
+		# print("- Puoi rilanciare i test falliti semplicemnte rilanciando il programma con l'ambiente corrispondente come parametro -".center(CONSOLE_WIDTH))
 	
 	print("\n\n")
-	print("Suggerimento".center(130))
-	print("Per una lista completa delle opzioni disponibili rilancia il programma fornendo il parametro '-h'".center(130))
+	print("Suggerimento".center(CONSOLE_WIDTH))
+	print("Per una lista completa delle opzioni disponibili rilancia il programma fornendo il parametro '-h'".center(CONSOLE_WIDTH))
 
 
-	print("----------------------------------------------------------------------------------------------------------------------------------\n	")
+	print(SEPARATOR + "\n")
 	
 	input("\nPremi INVIO per continuare\n")

@@ -67,7 +67,7 @@ from exceptions import BrowserNotInstalledException
 
 	APPUNTI DI SVILUPPO:
 		- Per la compilazione: pyinstaller --clean --name "Test_acquisto-PICO" --log-level=WARN --onefile --noconfirm --add-data="./conf/;./conf/" .\pico_tests.py
-		- Per la copia/upload: Copy-Item .\dist\Test_acquisto-P* "\\172.30.62.6\gts\sharedScripts\Test di Acquisto"
+		- Per la copia/upload: Copy-Item .\dist\Test_acquisto-* "\\172.30.62.6\gts\sharedScripts\Test di Acquisto"
 
 		- Entrambi: pyinstaller --clean --name "Test_acquisto-PICO" --log-level=WARN --onefile --noconfirm --add-data="./conf/;./conf/" .\pico_tests.py; if ($?) { Copy-Item .\dist\Test_acquisto-* "\\172.30.62.6\gts\sharedScripts\Test di Acquisto" }
 """
@@ -434,9 +434,10 @@ def singleNodeTest (url, visible=False):
 
 		WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#origin[name='departureStation']")))
 
-		# To take screenshot:
-		# driver.save_screenshot("screenshot.png")
 
+		# -------------------------------------------------------------------------------------
+		# 								Pagina di ricerca
+		# -------------------------------------------------------------------------------------
 		print("PAGINA - Ricerca soluzione:")
 		print("\tImposto stazione di partenza e arrivo: \t", end="", flush=True)
 		driver.find_element_by_css_selector("#origin[name='departureStation']").send_keys(TRAVEL_DETAILS["departure"] + Keys.TAB)
@@ -458,6 +459,7 @@ def singleNodeTest (url, visible=False):
 		search_start = time()
 		driver.find_element_by_id("searchButton").click()
 
+		# Controlla se si presenta il dialog per la stazione sbagliata, altrimenti procede
 		try:
 			WebDriverWait(driver, 3).until(EC.alert_is_present(), 'Timed out waiting for alert')
 
@@ -473,8 +475,16 @@ def singleNodeTest (url, visible=False):
 			# No errors
 			pass
 
+
+
+
+
+
+		# -------------------------------------------------------------------------------------
+		# 								Pagina dell'elenco soluzioni
+		# -------------------------------------------------------------------------------------
 		try:
-			WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#searchRequestForm #refreshButton")))
+			WebDriverWait(driver, 120).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#searchRequestForm #refreshButton")))
 		except (TimeoutException) as ex:
 			if driver.find_elements_by_id("errorExc"):
 				errore = driver.find_element_by_id("errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
@@ -573,6 +583,11 @@ def singleNodeTest (url, visible=False):
 
 
 
+
+
+		# -------------------------------------------------------------------------------------
+		# 								Pagina di prenotazione
+		# -------------------------------------------------------------------------------------
 		print("PAGINA - Inserimento dati prenotazione:", flush=True)
 
 		pannello_autenticazione = driver.find_element_by_id("firstPanel")
@@ -671,6 +686,11 @@ def singleNodeTest (url, visible=False):
 			return False
 
 
+
+
+		# -------------------------------------------------------------------------------------
+		# 								Pagina di pagamento N&TS
+		# -------------------------------------------------------------------------------------
 		print("\nPAGINA - Pagina di pagamento N&TS:", flush=True)
 		print("\tInserisco dati carta: \t\t\t", end="", flush=True)
 		driver.find_element_by_css_selector("input[name='ACCNTFIRSTNAME']").send_keys(str(CARD["firstName"]) + Keys.TAB)
@@ -700,6 +720,38 @@ def singleNodeTest (url, visible=False):
 		print("OK")
 
 
+
+
+
+		# -------------------------------------------------------------------------------------
+		# 							Pagina di conferma prenotazione
+		# -------------------------------------------------------------------------------------
+		print("\nPAGINA - Pagina 'SECURE CHECKOUT':", flush=True)
+		try:
+			# Aspetto fino alla pagina di conferma dei dati della Carta
+			print("\tCaricamento pagina: \t\t\t", end="", flush=True)
+			WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.ID, "challengeDataEntry")))
+			print("OK - Trovata richiesta di inserimento OTP")
+		except TimeoutException:
+			# Se la pagina non si carica
+			print("ERRORE - Nessuna richiesta di OTP trovata")
+
+		OTP = "111111"
+		print("\tInserimento OTP: \t\t\t", end="", flush=True)
+		driver.find_element_by_id("challengeDataEntry").send_keys(OTP + Keys.TAB)
+		sleep(0.5)
+		print(f"OK - Inserito OTP '{OTP}'")
+
+		print("\tClicco su 'Submit': \t\t\t", end="", flush=True)
+		driver.find_element_by_id("confirm").click()
+		print(f"OK")
+
+
+
+
+		# -------------------------------------------------------------------------------------
+		# 							Pagina di conferma prenotazione
+		# -------------------------------------------------------------------------------------
 		print("\nPAGINA - Pagina di conferma prenotazione:", flush=True)
 		try:
 			# Aspetto fino alla pagina di conferma dei dati della Carta
@@ -747,6 +799,25 @@ if __name__ == "__main__":
 	APP_ID = "Test_Mattutini"
 	APP_VERSION = "0.5.4"
 	APP_DATA = {}
+
+	APP_CONFIG = {
+		"CARD": {
+
+		},
+		"USER": {
+			"firstName": "",
+			"lastName": "",
+			"email": "",
+			"email": "",
+			"tel_number": "",
+		},
+		"TRAVEL": {
+			"departure": "Frascati",
+			"arrival": "Milano Centrale",
+			"travel_date": (datetime.now() + relativedelta(days=5)).strftime('%d-%m-%Y'),
+			"travel_time": "12"
+		}
+	}
 
 	FILE_PATH = os.path.dirname(os.path.realpath(__file__))
 	DEBUG = True
@@ -947,12 +1018,12 @@ if __name__ == "__main__":
 
 				if not "data" in APP_DATA or not APP_DATA["data"]:
 					print("Nessun dato ricavato dall'analisi del portale")
-					exit(1)
+					sys.exit(1)
 			
 			except BrowserNotInstalledException as e:
 				print(f"ERRORE CRITICO - Il browser '{e.browser}' non è installato sul sistema. Procedura annullata")
 
-				exit(2)
+				sys.exit(2)
 
 			except Exception as e:
 				print(f"CRITICAL ERROR - Fallito update infrastruttura con errore: {e}")
@@ -967,7 +1038,7 @@ if __name__ == "__main__":
 			elif not cache.exists():
 				print("FATAL ERROR - Per la prima configurazione e' mandatoria la disponibilita del portale per prendere i nodi infrastrutturali\n")
 				
-				exit(99)
+				sys.exit(99)
 		
 			print("Uso configurazione vecchia... Verra' aggiornata appena sara' raggiungibile il portale..\n")
 			APP_DATA = cache.getCache(check_expired=False)
@@ -1006,12 +1077,12 @@ if __name__ == "__main__":
 			print("TEST ABORTITO - File di Configurazione Utente non trovato")
 			print(e)
 
-			exit(2)
+			sys.exit(2)
 		except yaml.YAMLError as e:
 			print("TEST ABORTITO - File di Configurazione Utente non valido")
 			print(e)
 
-			exit(2)
+			sys.exit(2)
 
 
 		if "card" in USER_CONFIGURATION:
@@ -1023,8 +1094,6 @@ if __name__ == "__main__":
 		if "travel" in USER_CONFIGURATION:
 			TRAVEL_DETAILS = merge_dicts(TRAVEL_DETAILS, USER_CONFIGURATION["travel"])
 
-			
-		# exit()
 		
 	
 	"""
@@ -1043,20 +1112,26 @@ if __name__ == "__main__":
 
 
 
+
+
+
 	"""
-		--------------------------------------------------------------------------------------------
-												TEST START
-		--------------------------------------------------------------------------------------------
+	███████╗████████╗ █████╗ ██████╗ ████████╗    ████████╗███████╗███████╗████████╗
+	██╔════╝╚══██╔══╝██╔══██╗██╔══██╗╚══██╔══╝    ╚══██╔══╝██╔════╝██╔════╝╚══██╔══╝
+	███████╗   ██║   ███████║██████╔╝   ██║          ██║   █████╗  ███████╗   ██║   
+	╚════██║   ██║   ██╔══██║██╔══██╗   ██║          ██║   ██╔══╝  ╚════██║   ██║   
+	███████║   ██║   ██║  ██║██║  ██║   ██║          ██║   ███████╗███████║   ██║   
+	╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝          ╚═╝   ╚══════╝╚══════╝   ╚═╝   
 	"""
 	all_test_start = time()
 
 	risultati_test = {}
 
-	try:
-		if not "Pico" in nodes:
-			print("Nessuna configurazione presente corrispondente alla voce 'Pico'")
-			sys.exit(2)
+	if not "Pico" in nodes:
+		print("Nessuna configurazione presente corrispondente alla voce 'Pico'")
+		sys.exit(2)
 
+	try:
 		for ambiente in CLI_ARGS.ambienti:
 			print("-------------------------------------------------------------------------------")
 			print (f"Test di acquisto per {ambiente}")
@@ -1108,6 +1183,17 @@ if __name__ == "__main__":
 
 	program_end = time()
 
+
+
+
+	""" 
+	██████╗ ██╗███████╗██████╗ ██╗██╗      ██████╗  ██████╗  ██████╗ 
+	██╔══██╗██║██╔════╝██╔══██╗██║██║     ██╔═══██╗██╔════╝ ██╔═══██╗
+	██████╔╝██║█████╗  ██████╔╝██║██║     ██║   ██║██║  ███╗██║   ██║
+	██╔══██╗██║██╔══╝  ██╔═══╝ ██║██║     ██║   ██║██║   ██║██║   ██║
+	██║  ██║██║███████╗██║     ██║███████╗╚██████╔╝╚██████╔╝╚██████╔╝
+	╚═╝  ╚═╝╚═╝╚══════╝╚═╝     ╚═╝╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝ 
+    """                                                           
 	print("\n\n")
 	print("----------------------------------------------------------------------------------------------------------------------------------  	")
 	print("Riepilogo Generale".center(130))
