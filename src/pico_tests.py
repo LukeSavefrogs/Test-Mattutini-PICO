@@ -1,14 +1,16 @@
+#!/bin/python
 import inspect
-from textwrap import indent
 from urllib.parse import urlparse
 
 from webdriver_manager.driver import ChromeDriver
-from portalePICO.main import PortalePicoGTS
+from portalePICO.core import PortalePicoGTS
 import signal
 import os
 import sys
-from sys import exc_info
 import yaml
+
+from os import get_terminal_size
+
 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -22,7 +24,6 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException,
 
 
 from time import sleep, time
-from pyautogui import press
 
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
@@ -32,12 +33,7 @@ import textwrap
 import logging
 
 import traceback
-from contextlib import contextmanager, suppress
-
-# For testing purposes only
-# import random
-# import json
-
+from contextlib import contextmanager
 
 
 import requests
@@ -51,6 +47,7 @@ from MyCache.utils import Cache
 
 from exceptions import BrowserNotInstalledException
 
+from infrastructure import get_active_cell
 
 """
 	DESCRIZIONE:
@@ -322,98 +319,24 @@ def StartTest(url, visible=False):
 		print()
 
 
-# OLD 
-# @contextmanager
-# def StartTest():
+
+
+# def get_active_cell (url: str):
 # 	"""
-# 	Wrapper around the tests.
-# 	This ensures the test is ALWAYS ended gracefully, doing some clean-up before exiting (https://book.pythontips.com/en/latest/context_managers.html#implementing-a-context-manager-as-a-generator)
-
-# 	Yields:
-# 		selenium.webdriver.Chrome: The selenium webdriver instance used for the test
+# 		Restituisce la cella attiva
 # 	"""
-# 	test_start = time()
-
-# 	chrome_flags = [
-# 		"--disable-extensions",
-# 		"start-maximized",
-# 		"--disable-gpu",
-# 		"--ignore-certificate-errors",
-# 		"--ignore-ssl-errors",
-# 		#"--no-sandbox # linux only,
-# 		"--log-level=3",	# Start from CRITICAL
-# 		"--headless",
-# 	]
-# 	chrome_options = Options()
-
-# 	for flag in chrome_flags: chrome_options.add_argument(flag)
-
-# 	# To remove '[WDM]' logs (https://github.com/SergeyPirogov/webdriver_manager#configuration)
-# 	os.environ['WDM_LOG_LEVEL'] = '0'
-# 	os.environ['WDM_PRINT_FIRST_LINE'] = 'False'
-
-# 	# To remove "DevTools listening on ws:..." message (https://stackoverflow.com/a/56118790/8965861)
-# 	chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
-
-# 	__driver = None
-
+# 	data = {}
+# 	active_cell = ""
 # 	try:
-# 		__driver = webdriver.Chrome( ChromeDriverManager(log_level=0).install(), options=chrome_options )
-# 		__driver.set_window_size(1920, 1080)
-
-# 		yield __driver
-
-# 	except WebDriverException as ex:
-# 		print("------------------- WebDriverException -------------------")
-# 		__driver.save_screenshot("debug_pico-lastErrorBeforeException.png")
-
-
-# 		if "net::ERR_CONNECTION_TIMED_OUT" in ex.msg:
-# 			print("FATAL ERROR - La connessione con il server è andata in Timeout. \nCodice di errore net::ERR_CONNECTION_TIMED_OUT\n")
-		
-# 		elif "net::ERR_CONNECTION_REFUSED" in ex.msg:
-# 			print("FATAL ERROR - Impossibile contattare il server. \nCodice di errore net::ERR_CONNECTION_REFUSED\n")
-
-# 		elif re.match(pattern="unknown error: cannot find .* binary", string=ex.msg):
-# 			browser = re.match(pattern="unknown error: cannot find (.*?) binary", string=ex.msg).group(1)
-# 			# print(f"Il browser '{browser}' non risulta installato sulla macchina")
-
-# 			raise BrowserNotInstalledException(browser)
-
-# 		else:
-# 			print(f"OTHER ERROR - Message: {ex.msg}")
-# 			# print(f"sys.exc_info(): {sys.exc_info()}")
-# 			__driver.save_screenshot(f"debug_pico-{datetime.now().strftime('%Y%m%d-%H%M%S')}lastErrorBeforeException.png")
-
-# 			print("Stacktrace:")
-# 			traceback.print_stack()
-# 			print("\n")
+# 		data = requests.get(url).json()["active"]
+# 	except (ValueError, json.decoder.JSONDecodeError):
+#     	# no JSON returned
+# 		raise ValueError(f"L'URL '{url}' non contiene un JSON!")
+# 	except (IndexError, KeyError, TypeError):
+# 		# data does not have the inner structure you expect
+# 		raise ValueError(f"L'URL '{url}' non contiene la cella attiva (campo 'active')!")
 	
-# 		# input("Premi INVIO per continuare")
-
-# 	except Exception as exception:
-# 		print("------------------- Exception -------------------")
-# 		print(f"Message: {exception.msg}")
-# 		print(f"sys.exc_info(): {sys.exc_info()}")
-	
-# 		# input("Premi INVIO per continuare")
-# 		__driver.save_screenshot("debug_pico-lastErrorBeforeException.png")
-
-
-# 	finally:
-# 		if __driver is not None: 
-# 			print("\n\n+++++++++++++++++++ DESTROYING DRIVER... PLEASE WAIT... +++++++++++++++++++\n")
-# 			__driver.quit()
-# 			print("\n\n+++++++++++++++++++ DRIVER SUCCESSFULLY DESTROYED! +++++++++++++++++++")
-
-# 		test_end = time()
-# 		print(f"Durata test: {timedelta(seconds=int(test_end - test_start))}")
-
-# 		print()
-
-
-
-
+# 	return str(data).lower()
 
 
 
@@ -425,9 +348,21 @@ def StartTest(url, visible=False):
    ██║   ███████╗███████║   ██║       ███████╗╚██████╔╝╚██████╔╝██║╚██████╗
    ╚═╝   ╚══════╝╚══════╝   ╚═╝       ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝
 """
-def singleNodeTest (url, visible=False):
+def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 	"""
 	Starts the browser
+	
+
+	Args:
+		url (str): The URL of the node to test
+		visible (bool, optional): Wether to show the UI while executing the test. Can potentially alter the test results, so use with caution. Defaults to False.
+		skip_payment (bool, optional): Wether to stop at the payment phase. Defaults to False.
+
+	Raises:
+		Exception: DOM Exceptions, all exceptions are caught by the 'StartTest' ContextManager
+
+	Returns:
+		bool: True if test succeeded, False otherwise
 	"""
 
 	# For debug purposes - Always make the tests successful
@@ -524,82 +459,126 @@ def singleNodeTest (url, visible=False):
 		if not driver.find_elements_by_id("accordion"):
 			print("ERRORE (Nessuna soluzione trovata)")
 
-			# print("\nNessuna soluzione trovata per la tratta:")
-
-			# result_partenza = driver.find_element_by_css_selector("#collapseViaggio input[name='departureStation']").get_attribute("innerText").strip()
-			# result_arrivo = driver.find_element_by_css_selector("#collapseViaggio input[name='arrivalStation']").get_attribute("innerText").strip()
-			# result_data = driver.find_element_by_css_selector("#collapseViaggio input[id='calenderId1Text']").get_attribute("innerText").strip()
-			# result_orario = driver.find_element_by_css_selector("#collapseViaggio input[id='departureTimeText']").get_attribute("innerText").strip()
-
-			# print(f"\tStazione di partenza: {result_partenza}")
-			# print(f"\tStazione di arrivo: {result_arrivo}\n")
-
-			# print(f"\tData di partenza: {result_data}")
-			# print(f"\tOrario di partenza: {result_orario}\n")
-
-
 			return False
 
 
 		solution_container = driver.find_element_by_css_selector("form#searchRequestForm > .panel-group#accordion > div.panel")
 		solutions = solution_container.find_elements_by_css_selector("div[id^='travelSolution']")
-
-
+		
 		print (f"OK (trovate {len(solutions)} soluzioni)")
 
 
-		print(f"\tSeleziono soluzione intermedia: \t", end="", flush=True)
-		# Se c'è un unica solution:
-		# 	>>> int(1 / 2)              
-		# 	0
-		mid_solution_id = int(len(solutions) / 2)
-
-		mid_travelSolution = solution_container.find_element_by_id(f"travelSolution{mid_solution_id}")
-		mid_priceGrid = solution_container.find_element_by_id(f"priceGrid{mid_solution_id}")
-		print(f"OK (soluzione n. {mid_solution_id})\n")
-
-		SOLUTION = {
-			"ORARIO_PARTENZA": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(1) > div.split > span.bottom.text-center").get_attribute("innerText").strip(),
-			"ORARIO_ARRIVO": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(3) > div.split > span.bottom.text-center").get_attribute("innerText").strip(),
-			"DURATA": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) > div.descr.duration.text-center").get_attribute("innerText").strip(),
-			"NUMERO_CAMBI": re.search("Cambi: ([0-9]+)", mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) div.change").get_attribute("innerText").strip()).group(1) if mid_travelSolution.find_elements_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) div.change") else 0,
-			"ELENCO_TRENI": " -> ".join([ elem.find_element_by_css_selector(".train > .descr").get_attribute("innerText").strip() for elem in mid_travelSolution.find_elements_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(5) > .trainOffer") ]),
-			"PREZZO_DA": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(6) > span > div > span.price").get_attribute("innerText").strip(),
-		}
-
-		print ("\tDettagli soluzione selezionata:")
-		print (f"\t\t- Orario di partenza: {SOLUTION['ORARIO_PARTENZA']}")
-		print (f"\t\t- Orario di arrivo: {SOLUTION['ORARIO_ARRIVO']}")
-		print (f"\t\t- Durata del viaggio: {SOLUTION['DURATA']}")
-		print (f"\t\t- Numero di cambi: {SOLUTION['NUMERO_CAMBI']}")
-		print (f"\t\t- Elenco scambi: {SOLUTION['ELENCO_TRENI']}")
-		print (f"\t\t- Prezzo a partire da: {SOLUTION['PREZZO_DA']}\n")
-
-
-		print(f"\tClicco su 'Procedi': \t\t\t", end="", flush=True)
-		# Utilizzo Javascript per cliccare perchè l'elemento non è interagibile utilizzando Selenium
-		pulsante_continua = mid_priceGrid.find_element_by_css_selector("div.row > div > input.btn.btn-primary.btn-lg.btn-block[type='button']")
-		driver.execute_script("arguments[0].click();", pulsante_continua)
-		
-		try:
-			WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.ID, "firstPanel")))
-		except TimeoutException:
-			DebugManager.dump("PICO-TimeoutPrenotazione", driver, with_screenshot=True)
-			if driver.find_elements_by_id("errorExc"):
-				errore_text = driver.find_element_by_id("errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
-
-				print(f"ERRORE ({errore_text})")
-				return False
-			elif driver.find_elements_by_id("msgErrorCredentials"):
-				print(f"ERRORE - Comparso codice di errore. Vedere screenshot salvato")
+		MAX_ATTEMPTS_SOLUTION_SELECT = 5
+		for tentativo in range (0, MAX_ATTEMPTS_SOLUTION_SELECT):
+			print(f"\n\tTentativo n. {tentativo+1}: \t\t\t", end="", flush=True)
+			if tentativo >= int(len(solutions)):
+				print("ERRORE - Impossibile eseguire altri tentativi. Soluzioni non sufficenti")
 				return False
 			
-			print("ERRORE - La pagina di prenotazione non ha caricato entro 60 secondi.")
+			mid_travelSolution = solution_container.find_element_by_id(f"travelSolution{tentativo}")
+			mid_priceGrid = solution_container.find_element_by_id(f"priceGrid{tentativo}")
+			print(f"OK (provo soluzione n. {tentativo})")
+
+			print("\tControllo biglietto acquistabile: \t", end="", flush=True)
+			ora_partenza, ora_arrivo = "N/D", "N/D"
+			try:
+				ora_partenza = mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(1) > div.split > span.bottom.text-center").get_attribute("innerText").strip()
+				ora_arrivo = mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(3) > div.split > span.bottom.text-center").get_attribute("innerText").strip()
+				
+				SOLUTION = {
+					"ORARIO_PARTENZA": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(1) > div.split > span.bottom.text-center").get_attribute("innerText").strip(),
+					"ORARIO_ARRIVO": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(3) > div.split > span.bottom.text-center").get_attribute("innerText").strip(),
+					"DURATA": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) > div.descr.duration.text-center").get_attribute("innerText").strip(),
+					"NUMERO_CAMBI": re.search("Cambi: ([0-9]+)", mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) div.change").get_attribute("innerText").strip()).group(1) if mid_travelSolution.find_elements_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) div.change") else 0,
+					"ELENCO_TRENI": " -> ".join([ elem.find_element_by_css_selector(".train > .descr").get_attribute("innerText").strip() for elem in mid_travelSolution.find_elements_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(5) > .trainOffer") ]),
+					"PREZZO_DA": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(6) > span > div > span.price").get_attribute("innerText").strip(),
+				}
+			except WebDriverException as ex:
+				print(f"ERRORE - Biglietto NON acquistabile (treno {ora_partenza} - {ora_arrivo})")
+				continue
+				# logging.exception("Impossibile reperire dettagli del viaggio")
+			else:
+				print(f"OK (soluzione valida)\n")
+
+				print ("\tDettagli soluzione selezionata:")
+				print (f"\t\t- Orario di partenza: {SOLUTION['ORARIO_PARTENZA']}")
+				print (f"\t\t- Orario di arrivo: {SOLUTION['ORARIO_ARRIVO']}")
+				print (f"\t\t- Durata del viaggio: {SOLUTION['DURATA']}")
+				print (f"\t\t- Numero di cambi: {SOLUTION['NUMERO_CAMBI']}")
+				print (f"\t\t- Elenco scambi: {SOLUTION['ELENCO_TRENI']}")
+				print (f"\t\t- Prezzo a partire da: {SOLUTION['PREZZO_DA']}\n")
+
+			print(f"\tClicco su 'Procedi': \t\t\t", end="", flush=True)
 			
+			# Utilizzo Javascript per cliccare perchè l'elemento non è interagibile utilizzando Selenium
+			pulsante_continua = mid_priceGrid.find_element_by_css_selector("div.row > div > input.btn.btn-primary.btn-lg.btn-block[type='button']")
+			driver.execute_script("arguments[0].click();", pulsante_continua)
+			
+			try:
+				WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.ID, "firstPanel")))
+			except TimeoutException:
+				if driver.find_elements_by_id("errorExc"):
+					errore_text = driver.find_element_by_id("errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
+
+					print(f"ERRORE ({errore_text})")
+					DebugManager.dump("PICO-TimeoutPrenotazione", driver, with_screenshot=True)
+					return False
+				elif driver.find_elements_by_id("msgErrorCredentials") and driver.find_element_by_id("msgErrorCredentials").is_displayed():
+					error_text = driver.find_element_by_id("msgErrorCredentials").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
+					
+					if error_text.startswith("!DOCTYPE html>"):
+						print(f"ERRORE - Uno dei treni nella tratta NON ESISTE o risulta NON VALIDO")
+					else:
+						DebugManager.dump("PICO-TimeoutPrenotazioneErrore", driver, with_screenshot=True)
+						print(f"ERRORE - Comparso codice di errore. Vedere screenshot salvato")
+
+					return False
+				
+				elif driver.find_elements_by_id("upSellingPopupContent") and driver.find_element_by_id("upSellingPopupContent").is_displayed():
+					print("OK (Comparsa proposta di cambio a Premium)")
+					
+					target_button = driver.find_element_by_id("upSellingB1")
+					print(f"\tClicco su '{target_button.get_attribute('value').strip()}': \t", end="", flush=True)
+					target_button.click()
+
+					try:
+						WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.ID, "firstPanel")))
+						break
+
+					except TimeoutException:
+						print("ERRORE - Fallito nuovamente... ")
+						DebugManager.dump("PICO-TimeoutPrenotazioneSecondo", driver, with_screenshot=True)
+						return False
+
+				elif driver.find_elements_by_id("dayAfterModal") and driver.find_element_by_id("dayAfterModal").is_displayed():
+					print("OK (Comparso avviso di viaggio per il giorno successivo)")
+					
+					target_button = driver.find_element_by_css_selector("#dayAfterModal .modal-content > .modal-footer > button.btn-primary")
+					print(f"\tClicco su '{target_button.get_attribute('value').strip()}': \t", end="", flush=True)
+					target_button.click()
+
+					try:
+						WebDriverWait(driver, 60).until(EC.invisibility_of_element((By.ID, "dayAfterModal")))
+						break
+
+					except TimeoutException:
+						print("ERRORE - Fallito nuovamente... ")
+						logging.exception("Fallito durante la conferma del viaggio al giorno dopo")
+						# DebugManager.dump("PICO-TimeoutPrenotazioneSecondo", driver, with_screenshot=True)
+						return False
+
+				else:
+					print("ERRORE - La pagina di prenotazione non ha caricato entro 60 secondi.")
+					DebugManager.dump("PICO-TimeoutPrenotazione", driver, with_screenshot=True)
+				
+					return False
+			else:
+				print ("OK\n")
+				break
+		else:
+			print("")
+			print(f"ERRORE - Raggiunto numero massimo di tentativi falliti ({MAX_ATTEMPTS_SOLUTION_SELECT})")
 			return False
-		else:	
-			print ("OK\n")
-
 
 
 
@@ -711,6 +690,13 @@ def singleNodeTest (url, visible=False):
 		# 								Pagina di pagamento N&TS
 		# -------------------------------------------------------------------------------------
 		print("\nPAGINA - Pagina di pagamento N&TS:", flush=True)
+
+		# If we don't need to test the payment (ex. Production environment) skip to the end.
+		if skip_payment:
+			print("\tOK - E' stato specificato di saltare la fase di pagamento. Tutte le altre funzionalita' sono valide.")
+			return True
+
+
 		print("\tInserisco dati carta: \t\t\t", end="", flush=True)
 		driver.find_element_by_css_selector("input[name='ACCNTFIRSTNAME']").send_keys(str(CARD["firstName"]) + Keys.TAB)
 		driver.find_element_by_css_selector("input[name='ACCNTLASTNAME']").send_keys(str(CARD["lastName"]) + Keys.TAB)
@@ -753,17 +739,17 @@ def singleNodeTest (url, visible=False):
 			print("OK - Trovata richiesta di inserimento OTP")
 		except TimeoutException:
 			# Se la pagina non si carica
-			print("ERRORE - Nessuna richiesta di OTP trovata")
+			print("WARNING - Nessuna richiesta di OTP trovata")
+		else:
+			OTP = "111111"
+			print("\tInserimento OTP: \t\t\t", end="", flush=True)
+			driver.find_element_by_id("challengeDataEntry").send_keys(OTP + Keys.TAB)
+			sleep(0.5)
+			print(f"OK - Inserito OTP '{OTP}'")
 
-		OTP = "111111"
-		print("\tInserimento OTP: \t\t\t", end="", flush=True)
-		driver.find_element_by_id("challengeDataEntry").send_keys(OTP + Keys.TAB)
-		sleep(0.5)
-		print(f"OK - Inserito OTP '{OTP}'")
-
-		print("\tClicco su 'Submit': \t\t\t", end="", flush=True)
-		driver.find_element_by_id("confirm").click()
-		print(f"OK")
+			print("\tClicco su 'Submit': \t\t\t", end="", flush=True)
+			driver.find_element_by_id("confirm").click()
+			print(f"OK")
 
 
 
@@ -802,8 +788,21 @@ def singleNodeTest (url, visible=False):
 				return False
 		except TimeoutException:
 			# Se la pagina non si carica
-			print("ERRORE")
+			print("ERRORE - Errore nel caricamento della pagina.")
 
+			# try:
+			# 	logger.info(f"Inizio cambio password per l'Hostname: '{host}'")
+			# 	ISIM.change_password(driver, host)
+			# except Exception:
+			# 	logger.exception("Eccezione non gestita durante il cambio password. Segnalare allo sviluppatore")
+			# 	screenshot_filename = Path(tempfile.gettempdir(), f"ISIMRootPasswordChange_GenericException_{datetime.datetime.today().strftime('%d-%m-%Y_%H.%M.%S')}.png")
+				
+			# 	if driver.save_screenshot(str(screenshot_filename.absolute().resolve())):
+			# 		logger.error(f"Salvato screenshot: '{screenshot_filename.absolute()}'. Utilizzarlo per identificare il problema...")
+			# 		webbrowser.open(screenshot_filename.absolute().as_uri())
+
+
+			
 			DebugManager.dump("PICO-ErrorePrenotazione", driver, with_screenshot=True)
 			return False
 
@@ -812,12 +811,38 @@ def singleNodeTest (url, visible=False):
 	return False
 
 
+
+def repeat_string(string: str, length: int):
+	"""Repeat a string N times
+
+	Args:
+		string (str): String/character to be repeated
+		length (int): Number of times to repeat the string
+
+	Returns:
+		[type]: [description]
+	"""
+	return (string * length)[0:length]
+
+
 if __name__ == "__main__":
 	program_start = time()
 
 	APP_ID = "Test_Mattutini"
-	APP_VERSION = "0.5.4"
+	APP_VERSION = "0.7.1"
 	APP_DATA = {}
+
+	PROJECT_NAME = "Pico"
+
+	try:
+		window_size = get_terminal_size()
+
+		CONSOLE_WIDTH = window_size.columns
+		CONSOLE_HEIGTH = window_size.lines
+	except:
+		CONSOLE_WIDTH = 130
+
+
 
 	APP_CONFIG = {
 		"CARD": {
@@ -843,10 +868,10 @@ if __name__ == "__main__":
 
 
 	DEFAULT_AMBIENTI = [ 
-		"Certificazione", 
-		"Correttiva", 
-		"Integrazione", 
-		"Training" 
+		"Certificazione",
+		"Correttiva",
+		"Integrazione",
+		"Training"
 	]
 	
 	DEFAULT_STAZIONI = {
@@ -892,7 +917,7 @@ if __name__ == "__main__":
 	
 	# Descrizione del programma
 	DESCRIPTION = (
-		f"Script per il testing automatico degli ambienti NOPROD di PICO - Versione {APP_VERSION}\n"
+		f"Script per il testing automatico degli ambienti NOPROD di {PROJECT_NAME} - Versione {APP_VERSION}\n"
 	)
 
 	EXAMPLE_CONF_FILE = ""
@@ -978,9 +1003,17 @@ if __name__ == "__main__":
 							   
 	stazioni.add_argument("-P", "--stazione-partenza", help=f"Indica la stazione di partenza (default=%(default)s)", dest="stazione_partenza", default=DEFAULT_STAZIONI["partenza"], metavar="stazione")
 	
-	stazioni.add_argument("-G", "--giorno-partenza", help=f"Indica la data di partenza (default: %(default)s)", dest="data_partenza", default=(datetime.now() + relativedelta(days=5)).strftime('%d-%m-%Y'), metavar="data")
+	# default=(datetime.now() + relativedelta(days=5)).strftime('%d-%m-%Y')
+	target_date = datetime.now() + relativedelta(hours=1)
+	stazioni.add_argument("-G", "--giorno-partenza", help=f"Indica la data di partenza (default: %(default)s)", dest="data_partenza", default=target_date.strftime('%d-%m-%Y'), metavar="data")
 	
-	stazioni.add_argument("-O", "--ora-partenza", help=f"Indica l'ora di partenza (default: %(default)s)", dest="ora_partenza", default="12", metavar="ora")
+	stazioni.add_argument("-O", "--ora-partenza", help=f"Indica l'ora di partenza (default: %(default)s)", dest="ora_partenza", default=target_date.strftime('%H'), metavar="ora")
+
+	special = parser.add_argument_group('Opzioni speciali')
+	special.add_argument("-S", "--salta-pagamento", 
+					help=f"Se questo flag e' attivo il test si fermera' prima di arrivare alla pagina di pagamento N&TS. Utile per fare i test di acquisto su Produzione, dove non e' valida la carta di test.", 
+					dest="skip_payment", default=False, action="store_true")
+	
 
 
 	files = parser.add_argument_group('Opzioni di configurazione')
@@ -992,6 +1025,9 @@ if __name__ == "__main__":
 	altre_opzioni.add_argument("-f", "--force-update", help="Forza l'aggiornamento del file di configurazione dell'infrastruttura",
 						action="store_true", dest="force_update")
 	
+	altre_opzioni.add_argument("-l", "--list-options", help="Mostra tutti gli ambienti disponibili con la configurazione corrente",
+						action="store_true", dest="show_available_environments")
+
 	altre_opzioni.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
                    		help='Mostra questo messaggio ed esce')
 
@@ -1008,12 +1044,12 @@ if __name__ == "__main__":
 
 
 	if DEBUG: 
-		print("----------------------------------------------------------------------------------------------------------------------------------\n	")
-		print(f"TEST MATTUTINI PICO - VERSIONE DI SVILUPPO v.{APP_VERSION}".center(130))
+		print(f"{repeat_string('-', CONSOLE_WIDTH)}\n	")
+		print(f"TEST MATTUTINI {PROJECT_NAME} - VERSIONE DI SVILUPPO v.{APP_VERSION}".center(CONSOLE_WIDTH))
 		print("")
-		print("In fase di test si prega di lanciare il programma con 'nomeprogramma.exe | Tee-Object -Append -FilePath \"terminal.log\"'".center(130))
-		print("Questo file andra' poi condiviso se vengono trovati degli errori nel programma\n".center(130))
-		print("----------------------------------------------------------------------------------------------------------------------------------\n	")
+		print("In fase di test si prega di lanciare il programma con 'nomeprogramma.exe | Tee-Object -Append -FilePath \"terminal.log\"'".center(CONSOLE_WIDTH))
+		print("Questo file andra' poi condiviso se vengono trovati degli errori nel programma\n".center(CONSOLE_WIDTH))
+		print(f"{repeat_string('-', CONSOLE_WIDTH)}\n	")
 
 
 	
@@ -1134,6 +1170,51 @@ if __name__ == "__main__":
 
 
 
+	if not PROJECT_NAME in nodes:
+		print(f"Nessuna configurazione presente corrispondente alla voce '{PROJECT_NAME}'")
+		sys.exit(2)
+	
+	valid_keys = [ "B2C", "B2C_SC" ]
+	VALID_ENVIRONMENTS  = [ 
+		key for key in nodes[PROJECT_NAME].keys() 
+			if 
+				(
+					"B2C" in nodes[PROJECT_NAME][key] 
+					and "APPLICATION_SERVER" in nodes[PROJECT_NAME][key]["B2C"]
+				) or
+				(
+					"B2C_SC" in nodes[PROJECT_NAME][key] 
+					and "APPLICATION_SERVER" in nodes[PROJECT_NAME][key]["B2C_SC"]
+				)
+	]
+	
+	if CLI_ARGS.show_available_environments: 
+		print("Ambienti disponibili per il test:")
+		for ambiente in VALID_ENVIRONMENTS: 
+			if ambiente.startswith("Corr-Blue"): print("\t- Correttiva (nodo attivo)")
+			elif ambiente.startswith("Cert-Blue"): print("\t- Certificazione (nodo attivo)")
+			elif ambiente.startswith("Int-Blue"): print("\t- Integrazione (nodo attivo)")
+			print(f"\t- {ambiente}")
+		
+		print("")
+		
+		sys.exit(0)
+
+
+
+	if not CLI_ARGS.ambienti:
+		print(repeat_string('-', CONSOLE_WIDTH))
+		print("ATTENZIONE".center(CONSOLE_WIDTH))
+		print("Nessun ambiente specificato. Aggiungine uno per iniziare i test.".center(CONSOLE_WIDTH))
+		print("Per un controllo degli ambienti disponibili vai su http://ngppgtsfe.pico.gts/was/ng-nodes".center(CONSOLE_WIDTH))
+		print(repeat_string('-', CONSOLE_WIDTH))
+
+
+
+
+
+
+
 	"""
 	███████╗████████╗ █████╗ ██████╗ ████████╗    ████████╗███████╗███████╗████████╗
 	██╔════╝╚══██╔══╝██╔══██╗██╔══██╗╚══██╔══╝    ╚══██╔══╝██╔════╝██╔════╝╚══██╔══╝
@@ -1142,25 +1223,51 @@ if __name__ == "__main__":
 	███████║   ██║   ██║  ██║██║  ██║   ██║          ██║   ███████╗███████║   ██║   
 	╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝          ╚═╝   ╚══════╝╚══════╝   ╚═╝   
 	"""
-	all_test_start = time()
-
-	risultati_test = {}
-
-	if not "Pico" in nodes:
-		print("Nessuna configurazione presente corrispondente alla voce 'Pico'")
-		sys.exit(2)
-
 	try:
+		all_test_start = time()
+		risultati_test = {}
+
 		for ambiente in CLI_ARGS.ambienti:
-			print("-------------------------------------------------------------------------------")
+			print(repeat_string('-', CONSOLE_WIDTH))
 			print (f"Test di acquisto per {ambiente}")
 
-			if not ambiente in nodes["Pico"]:
-				print (f"\nATTENZIONE - L'ambiente '{ambiente}' non esiste o il file di configurazione potrebbe non essere aggiornato.")
+
+			# Se si sta puntando il nodo generico, viene puntato quello attivo
+			if ambiente == "Correttiva":
+				active_cell = get_active_cell(project=PROJECT_NAME, environment=ambiente)
+				print (f"INFO - Stai puntando al nodo della Cella Attiva di '{ambiente}' ({active_cell.upper()})\n")
+				
+				ambiente = "Corr-Green" if active_cell == "green" else "Corr-Blue"
+
+			elif ambiente == "Certificazione":
+				active_cell = get_active_cell(project=PROJECT_NAME, environment=ambiente)
+				print (f"INFO - Stai puntando al nodo della Cella Attiva di '{ambiente}' ({active_cell.upper()})\n")
+				
+				ambiente = "Cert-Green" if active_cell == "green" else "Cert-Blue"
+
+			elif ambiente == "Integrazione":
+				# active_cell = get_active_cell(project=PROJECT_NAME, environment=ambiente)
+				active_cell = "blue"		# Al momento SOLO la blue è attiva
+				print (f"INFO - Stai puntando al nodo della Cella Attiva di '{ambiente}' ({active_cell.upper()})\n")
+				
+				ambiente = "Int-Green" if active_cell == "green" else "Int-Blue"
+
+
+
+			if not ambiente in nodes[PROJECT_NAME]:
+				print ("")
+				print (f"ATTENZIONE - L'ambiente '{ambiente}' non esiste o il file di configurazione potrebbe non essere aggiornato.\n\n")
 				continue
 
-			ENDPOINT = [ jvm["urls"]["https"] for jvm in nodes["Pico"][ambiente]["B2C"]["APPLICATION_SERVER"] ]
-			
+			if "B2C" in nodes[PROJECT_NAME][ambiente]:
+				ENDPOINT = [ 
+					jvm["urls"]["https"] for jvm in nodes[PROJECT_NAME][ambiente]["B2C"]["APPLICATION_SERVER"] 
+				]
+			else:
+				ENDPOINT = [ 
+					jvm["urls"]["https"] for jvm in nodes[PROJECT_NAME][ambiente]["B2C_SC"]["APPLICATION_SERVER"] 
+				]
+
 			if not ambiente in risultati_test:
 				risultati_test[ambiente] = {
 					"totale_nodi": len(ENDPOINT),
@@ -1170,7 +1277,7 @@ if __name__ == "__main__":
 			for index, url in enumerate(ENDPOINT):
 				print(f"{ambiente} B2C [nodo {index+1} di {len(ENDPOINT)}] - {url}")
 				
-				test_success = singleNodeTest(url, CLI_ARGS.show_browser)
+				test_success = singleNodeTest(url, CLI_ARGS.show_browser, skip_payment=CLI_ARGS.skip_payment)
 				
 
 				risultati_test[ambiente]["risultati"].append({
@@ -1190,14 +1297,6 @@ if __name__ == "__main__":
 		print(f"ERRORE CRITICO - Il browser '{e.browser}' non è installato sul sistema. Procedura annullata")
 
 		exit(2)
-	
-	if not CLI_ARGS.ambienti:
-		print("---------------------------------------------------------------------------------------------")
-		print("                                       ATTENZIONE                                            ")
-		print("              Nessun ambiente specificato. Aggiungine uno per iniziare i test.				")
-		print("  Per un controllo degli ambienti disponibili vai su http://ngppgtsfe.pico.gts/was/ng-nodes	")
-		print("---------------------------------------------------------------------------------------------")
-
 
 
 	program_end = time()
@@ -1214,20 +1313,20 @@ if __name__ == "__main__":
 	╚═╝  ╚═╝╚═╝╚══════╝╚═╝     ╚═╝╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝ 
     """                                                           
 	print("\n\n")
-	print("----------------------------------------------------------------------------------------------------------------------------------  	")
-	print("Riepilogo Generale".center(130))
-	print("----------------------------------------------------------------------------------------------------------------------------------  	")
+	print(repeat_string('-', CONSOLE_WIDTH))
+	print("Riepilogo Generale".center(CONSOLE_WIDTH))
+	print(repeat_string('-', CONSOLE_WIDTH))
 	print("")
-	print("---------------------------".center(130))
-	print("|  Statistiche generiche  |".center(130))
-	print("---------------------------".center(130))
+	print("---------------------------".center(CONSOLE_WIDTH))
+	print("|  Statistiche generiche  |".center(CONSOLE_WIDTH))
+	print("---------------------------".center(CONSOLE_WIDTH))
 	print("")
-	print(f"- Durata complessiva test:     {timedelta(seconds=int(program_end - all_test_start))} -".center(130))
-	print(f"- Durata totale programma:     {timedelta(seconds=int(program_end - program_start))} -".center(130))
+	print(f"- Durata complessiva test:     {timedelta(seconds=int(program_end - all_test_start))} -".center(CONSOLE_WIDTH))
+	print(f"- Durata totale programma:     {timedelta(seconds=int(program_end - program_start))} -".center(CONSOLE_WIDTH))
 	print("\n\n")
-	print("--------------------".center(130))
-	print("|  Risultati Test  |".center(130))
-	print("--------------------".center(130))
+	print("--------------------".center(CONSOLE_WIDTH))
+	print("|  Risultati Test  |".center(CONSOLE_WIDTH))
+	print("--------------------".center(CONSOLE_WIDTH))
 
 	for ambiente in risultati_test:
 		print(f"{ambiente.title()}:")
@@ -1242,15 +1341,16 @@ if __name__ == "__main__":
 	if not all([ risultato["result"] for ambiente in risultati_test for risultato in risultati_test[ambiente]["risultati"] ]):
 		pass
 		# print("\n\n")
-		# print("Aiuto".center(130))
-		# print("- Controlla la log per vedere dove sono FALLITI i test.. -".center(130))
-		# print("- Puoi rilanciare i test falliti semplicemnte rilanciando il programma con l'ambiente corrispondente come parametro -".center(130))
+		# print("Aiuto".center(CONSOLE_WIDTH))
+		# print("- Controlla la log per vedere dove sono FALLITI i test.. -".center(CONSOLE_WIDTH))
+		# print("- Puoi rilanciare i test falliti semplicemnte rilanciando il programma con l'ambiente corrispondente come parametro -".center(CONSOLE_WIDTH))
 	
 	print("\n\n")
-	print("Suggerimento".center(130))
-	print("Per una lista completa delle opzioni disponibili rilancia il programma fornendo il parametro '-h'".center(130))
+	print("Suggerimento".center(CONSOLE_WIDTH))
+	print("Per una lista completa delle opzioni disponibili rilancia il programma fornendo il parametro '-h'".center(CONSOLE_WIDTH))
 
 
-	print("----------------------------------------------------------------------------------------------------------------------------------\n	")
+	print(repeat_string('-', CONSOLE_WIDTH))
+	print("")
 	
 	input("\nPremi INVIO per continuare\n")

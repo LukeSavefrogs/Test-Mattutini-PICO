@@ -1,7 +1,32 @@
-import re
-import sys
-import os
-import inspect
+import sys, os
+import re, inspect
+import ctypes
+
+def executable_run_directly():
+	"""Checks wether an executable file was launched by double-clicking on the icon
+
+	Raises:
+		Exception: Only if there was an exep
+
+	Returns:
+		[type]: [description]
+	"""
+	try:
+		# Load kernel32.dll
+		kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+		# Create an array to store the processes in.  This doesn't actually need to
+		# be large enough to store the whole process list since GetConsoleProcessList()
+		# just returns the number of processes if the array is too small.
+		process_array = (ctypes.c_uint * 1)()
+		num_processes = kernel32.GetConsoleProcessList(process_array, 1)
+		# num_processes may be 1 if your compiled program doesn't have a launcher/wrapper.
+
+		return num_processes <= 2
+	except Exception as e:
+		raise Exception("Method not supported by your OS")
+
+
+
 
 def getCorrectPath(filePath):
 	"""Returns the correct path (relative/absolute) wether is a frozen app or a script 
@@ -42,6 +67,10 @@ def getCorrectPath(filePath):
 
 
 
+
+
+
+
 def compareVersions(vA, vB):
 	"""
 		@deprecated: USE https://stackoverflow.com/a/28485211/8965861
@@ -76,4 +105,3 @@ def compareVersions(vA, vB):
 		if vA.endswith('-SNAPSHOT'): return -1
 		if vB.endswith('-SNAPSHOT'): return 1
 	return rc
-

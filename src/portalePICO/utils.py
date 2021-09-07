@@ -1,12 +1,5 @@
 import traceback
-from portalePICO.main import PortalePicoGTS
-from os.path import expanduser, join, exists
-from datetime import datetime
-import time
-
-import json
-import yaml
-
+from portalePICO.core import PortalePicoGTS
 
 class Trenitalia(object):
 	@staticmethod

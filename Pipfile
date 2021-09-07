@@ -13,8 +13,11 @@ PyAutoGUI = "*"
 PyYAML = "*"
 pyinstaller = "*"
 colorama = "*"
+blessed = "*"
+packaging = "*"
 
 [dev-packages]
+pyinstaller = "*"
 
 [requires]
 python_version = "3.8"

@@ -1,4 +1,4 @@
-from portalePICO.main import PortalePicoGTS
+from portalePICO.core import PortalePicoGTS
 import os
 from datetime import datetime
 import time
