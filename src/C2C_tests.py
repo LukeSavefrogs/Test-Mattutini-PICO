@@ -482,6 +482,16 @@ def StartTest(url, visible=False):
 		yield __driver
 
 	except WebDriverException as ex:
+		# Controllo se c'è un dialog
+		try:
+			modal = C2C_Interface.waitForModalPresent(__driver, timeout=3)
+		except TimeoutException:
+			pass # Nessun dialog presente
+		else:
+			# Se si tratta di un dialog inatteso
+			logger.error(f"Exception probabilmente causata da dialog non previsto '{modal['title']}': {modal}")
+
+
 		print("------------------- WebDriverException -------------------")
 
 		# errorManager.dumpException()
@@ -604,7 +614,8 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 			close_buttons = WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "[id^=yie-overlay] button[id^=yie-close-button]")))
 			for close_btn in close_buttons: 
 				try:
-					close_btn.click()
+					driver.execute_script("arguments[0].click()", close_btn)
+					# close_btn.click()
 				except Exception as e:
 					pass
 				else: 
@@ -622,7 +633,8 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 		print("\tControllo la presenza di Cookie: \t", end="", flush=True)
 		try:
 			ACCEPT_COOKIES = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "CybotCookiebotDialogBodyButtonAccept")))
-			ACCEPT_COOKIES.click()
+			driver.execute_script("arguments[0].click()", ACCEPT_COOKIES)
+			# ACCEPT_COOKIES.click()
 			
 			print(f"OK (Accettata Policy sui Cookie)")
 		except TimeoutException:
@@ -1032,7 +1044,18 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 				errore_transazione_text = driver.find_element_by_id("errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
 
 				print(f"ERRORE ({errore_transazione_text})")
-				
+			else:
+				# Controllo se c'è un dialog
+				try:
+					modal = C2C_Interface.waitForModalPresent(driver, timeout=3)
+				except TimeoutException:
+					print(f"ERRORE - Timeout durante il caricamento della pagina")
+
+					pass # Nessun dialog presente
+				else:
+					# Se si tratta di un dialog inatteso
+					print(f"ERRORE - Timeout causato da dialog non previsto '{modal['title']}': {modal}")
+					driver.save_screenshot(f"caricamento_nets_dialog-{datetime.now().strftime('%Y%m%d-%H%M%S')}.png")
 			return False
 		
 		except:
@@ -1156,7 +1179,7 @@ if __name__ == "__main__":
 	program_start = time()
 
 	APP_ID = "Test_Mattutini_C2C"
-	APP_VERSION = "0.7.0"
+	APP_VERSION = "0.7.2"
 	APP_DATA = {}
 
 	try:
@@ -1481,11 +1504,13 @@ if __name__ == "__main__":
 	print(f"\tOrario di partenza: \t{TRAVEL_DETAILS['travel_time']}\n")
 
 
-
 	"""
-		--------------------------------------------------------------------------------------------
-												TEST START
-		--------------------------------------------------------------------------------------------
+	███████╗████████╗ █████╗ ██████╗ ████████╗    ████████╗███████╗███████╗████████╗
+	██╔════╝╚══██╔══╝██╔══██╗██╔══██╗╚══██╔══╝    ╚══██╔══╝██╔════╝██╔════╝╚══██╔══╝
+	███████╗   ██║   ███████║██████╔╝   ██║          ██║   █████╗  ███████╗   ██║   
+	╚════██║   ██║   ██╔══██║██╔══██╗   ██║          ██║   ██╔══╝  ╚════██║   ██║   
+	███████║   ██║   ██║  ██║██║  ██║   ██║          ██║   ███████╗███████║   ██║   
+	╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝          ╚═╝   ╚══════╝╚══════╝   ╚═╝   
 	"""
 	all_test_start = time()
 

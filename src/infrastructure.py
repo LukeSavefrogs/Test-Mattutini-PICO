@@ -54,6 +54,7 @@ def get_active_cell(project: str, environment: str, useVip: bool = True):
 			url = "http://correttiva.web.pico.trn/active/"
 		else:
 			logger.error(f"Environment '{environment}' not valid")
+			# raise EnvironmentParsingException(f"Environment '{environment}' not valid")
 			return None
 		
 	elif project.upper() == "C2C":
@@ -63,10 +64,12 @@ def get_active_cell(project: str, environment: str, useVip: bool = True):
 			url = "http://ticketsstaging.c2c-online.co.uk/active/"
 		else:
 			logger.error(f"Environment '{environment}' not valid")
+			# raise EnvironmentParsingException(f"Environment '{environment}' not valid")
 			return None
 
 	else:
-		logger.error(f"Project '{environment}' not valid")
+		logger.error(f"Project '{project.upper()}' not valid")
+		# raise EnvironmentParsingException(f"Project '{project.upper()}' not valid")
 		return None
 	
 	try:
@@ -155,20 +158,17 @@ class EnvironmentParsingException(Exception):
 def get_color_from_env (environment: str):
 	pass
 
-def get_color_from_env (environment: str):
-	pass
-
 
 if __name__ == '__main__':
 	print("Test Start:")
 
-	print (vars(EnvironmentParser(project="PICO", environment="produzione")))
-	print (vars(EnvironmentParser(project="PICO", environment="prod-green")))
-	print (vars(EnvironmentParser(project="PICO", environment="prod-blue")))
-	print (vars(EnvironmentParser(project="PICO", environment="certificazione")))
-	print (vars(EnvironmentParser(project="PICO", environment="cert")))
-	print (vars(EnvironmentParser(project="PICO", environment="asdfhgklzf")))
-	print (vars(EnvironmentParser(project="PICO", environment="asdfhgklzfa-asgjfghf")))
+	# print (vars(EnvironmentParser(project="PICO", environment="produzione")))
+	# print (vars(EnvironmentParser(project="PICO", environment="prod-green")))
+	# print (vars(EnvironmentParser(project="PICO", environment="prod-blue")))
+	# print (vars(EnvironmentParser(project="PICO", environment="certificazione")))
+	# print (vars(EnvironmentParser(project="PICO", environment="cert")))
+	# print (vars(EnvironmentParser(project="PICO", environment="asdfhgklzf")))
+	# print (vars(EnvironmentParser(project="PICO", environment="asdfhgklzfa-asgjfghf")))
 	print (vars(EnvironmentParser(project="PICO", environment="Cert-GREEN")))
 	print (vars(EnvironmentParser(project="PICO", environment="corr-blue")))
 	print (vars(EnvironmentParser(project="PICO", environment="integrazione")))

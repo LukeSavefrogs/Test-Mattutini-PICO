@@ -1,9 +1,9 @@
-import traceback
+import logging
 from portalePICO.core import PortalePicoGTS
 
 class Trenitalia(object):
 	@staticmethod
-	def getInfrastructure():
+	def getInfrastructure(headless=True):
 		nodi = {}
 		
 		# --------------------------------------------------------------------------
@@ -11,7 +11,7 @@ class Trenitalia(object):
 		# --------------------------------------------------------------------------
 		print ("<PortalePicoGTS-PyScraper>")
 		try:
-			gts = PortalePicoGTS()
+			gts = PortalePicoGTS(headless=headless)
 			gts.login("ictsmoperator", "Pico.GTS")
 
 			nodi = gts.getNodes()
@@ -19,8 +19,7 @@ class Trenitalia(object):
 			
 		except Exception as e:
 			print("ERRORE - " + str(e))
-			print("Stacktrace:")
-			traceback.print_stack()
+			logging.exception("Stacktrace:")
 
 		finally:
 			print()

@@ -320,26 +320,6 @@ def StartTest(url, visible=False):
 
 
 
-
-# def get_active_cell (url: str):
-# 	"""
-# 		Restituisce la cella attiva
-# 	"""
-# 	data = {}
-# 	active_cell = ""
-# 	try:
-# 		data = requests.get(url).json()["active"]
-# 	except (ValueError, json.decoder.JSONDecodeError):
-#     	# no JSON returned
-# 		raise ValueError(f"L'URL '{url}' non contiene un JSON!")
-# 	except (IndexError, KeyError, TypeError):
-# 		# data does not have the inner structure you expect
-# 		raise ValueError(f"L'URL '{url}' non contiene la cella attiva (campo 'active')!")
-	
-# 	return str(data).lower()
-
-
-
 """
 ████████╗███████╗███████╗████████╗    ██╗      ██████╗  ██████╗ ██╗ ██████╗
 ╚══██╔══╝██╔════╝██╔════╝╚══██╔══╝    ██║     ██╔═══██╗██╔════╝ ██║██╔════╝
@@ -471,12 +451,15 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 		MAX_ATTEMPTS_SOLUTION_SELECT = 5
 		for tentativo in range (0, MAX_ATTEMPTS_SOLUTION_SELECT):
 			print(f"\n\tTentativo n. {tentativo+1}: \t\t\t", end="", flush=True)
+						
+			solution_container = driver.find_element_by_css_selector("form#searchRequestForm > .panel-group#accordion > div.panel")
+			solutions = solution_container.find_elements_by_css_selector("div[id^='travelSolution']")
+
 			if tentativo >= int(len(solutions)):
 				print("ERRORE - Impossibile eseguire altri tentativi. Soluzioni non sufficenti")
 				return False
-			
+
 			mid_travelSolution = solution_container.find_element_by_id(f"travelSolution{tentativo}")
-			mid_priceGrid = solution_container.find_element_by_id(f"priceGrid{tentativo}")
 			print(f"OK (provo soluzione n. {tentativo})")
 
 			print("\tControllo biglietto acquistabile: \t", end="", flush=True)
@@ -508,12 +491,23 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 				print (f"\t\t- Elenco scambi: {SOLUTION['ELENCO_TRENI']}")
 				print (f"\t\t- Prezzo a partire da: {SOLUTION['PREZZO_DA']}\n")
 
-			print(f"\tClicco su 'Procedi': \t\t\t", end="", flush=True)
-			
+			print("\tEspando soluzione: \t\t\t", end="", flush=True)
+			try: 
+				mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(6)").click()
+				WebDriverWait(driver, 120).until(EC.visibility_of_element_located((By.CSS_SELECTOR, f"div#priceGrid{tentativo} div.row > div > input.btn.btn-primary.btn-lg.btn-block[type='button']")))
+			except (WebDriverException, TimeoutException) as ex:
+				print(f"\tClicco su 'Procedi': \t\t\t", end="", flush=True)
+				print(f"ERRORE - Impossibile espandere la soluzione '{tentativo}'")
+				continue
+			else:
+				print(f"OK")
+
 			# Utilizzo Javascript per cliccare perchè l'elemento non è interagibile utilizzando Selenium
+			mid_priceGrid = solution_container.find_element_by_id(f"priceGrid{tentativo}")
 			pulsante_continua = mid_priceGrid.find_element_by_css_selector("div.row > div > input.btn.btn-primary.btn-lg.btn-block[type='button']")
 			driver.execute_script("arguments[0].click();", pulsante_continua)
 			
+			print("\tAspetto il caricamento della pagina: \t", end="", flush=True)
 			try:
 				WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.ID, "firstPanel")))
 			except TimeoutException:
@@ -522,7 +516,10 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 
 					print(f"ERRORE ({errore_text})")
 					DebugManager.dump("PICO-TimeoutPrenotazione", driver, with_screenshot=True)
+					if driver.find_elements_by_id(f"priceGrid{tentativo}"):
+						continue
 					return False
+
 				elif driver.find_elements_by_id("msgErrorCredentials") and driver.find_element_by_id("msgErrorCredentials").is_displayed():
 					error_text = driver.find_element_by_id("msgErrorCredentials").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
 					
@@ -829,7 +826,7 @@ if __name__ == "__main__":
 	program_start = time()
 
 	APP_ID = "Test_Mattutini"
-	APP_VERSION = "0.7.1"
+	APP_VERSION = "0.7.2"
 	APP_DATA = {}
 
 	PROJECT_NAME = "Pico"
@@ -1165,15 +1162,6 @@ if __name__ == "__main__":
 	print(f"\tData di partenza: \t{TRAVEL_DETAILS['travel_date']}")
 	print(f"\tOrario di partenza: \t{TRAVEL_DETAILS['travel_time']}\n")
 
-
-
-
-
-
-	if not PROJECT_NAME in nodes:
-		print(f"Nessuna configurazione presente corrispondente alla voce '{PROJECT_NAME}'")
-		sys.exit(2)
-	
 	valid_keys = [ "B2C", "B2C_SC" ]
 	VALID_ENVIRONMENTS  = [ 
 		key for key in nodes[PROJECT_NAME].keys() 
@@ -1208,6 +1196,8 @@ if __name__ == "__main__":
 		print("Nessun ambiente specificato. Aggiungine uno per iniziare i test.".center(CONSOLE_WIDTH))
 		print("Per un controllo degli ambienti disponibili vai su http://ngppgtsfe.pico.gts/was/ng-nodes".center(CONSOLE_WIDTH))
 		print(repeat_string('-', CONSOLE_WIDTH))
+		
+		sys.exit(1)
 
 
 
@@ -1223,6 +1213,10 @@ if __name__ == "__main__":
 	███████║   ██║   ██║  ██║██║  ██║   ██║          ██║   ███████╗███████║   ██║   
 	╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝          ╚═╝   ╚══════╝╚══════╝   ╚═╝   
 	"""
+	if not PROJECT_NAME in nodes:
+		print(f"Nessuna configurazione presente corrispondente alla voce '{PROJECT_NAME}'")
+		sys.exit(2)
+
 	try:
 		all_test_start = time()
 		risultati_test = {}

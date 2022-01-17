@@ -8,7 +8,7 @@ function Submit-Script () {
 		[string] $RemoteDirectory = "\\172.30.62.27\SharedMonitor\Test di Acquisto"
 	)
 
-	Write-Host -ForegroundColor DarkCyan "Compilazione iniziata ($InputPath -> $OutputName)"
+	Write-Host -ForegroundColor DarkCyan "Compilazione iniziata (${InputPath} -> ${OutputName}.exe)"
 	pyinstaller `
 		--clean `
 		--name "$OutputName" `
@@ -41,4 +41,4 @@ function Submit-Script () {
 
 
 Submit-Script -OutputName "Test_acquisto-C2C" -InputPath .\src\C2C_tests.py -CopyToRemote
-# Submit-Script -OutputName "Test_acquisto-PICO" -InputPath .\src\pico_tests.py -CopyToRemote
+Submit-Script -OutputName "Test_acquisto-PICO" -InputPath .\src\pico_tests.py -CopyToRemote

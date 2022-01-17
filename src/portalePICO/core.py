@@ -30,8 +30,8 @@ class PortalePicoGTS(object):
 			headless (bool, optional): Whether to start the browser without the UI. Defaults to True.
 		"""
 		chrome_flags = [
-			# "--disable-extensions",
-			"start-maximized",
+			"--disable-extensions",
+			"--start-maximized",
 			"--disable-gpu",
 			"--ignore-certificate-errors",
 			"--ignore-ssl-errors",
@@ -48,7 +48,8 @@ class PortalePicoGTS(object):
 		# To remove '[WDM]' logs (https://github.com/SergeyPirogov/webdriver_manager#configuration)
 		environ['WDM_LOG_LEVEL'] = '0'
 		environ['WDM_PRINT_FIRST_LINE'] = 'False'
-		
+		environ['WDM_SSL_VERIFY']='0'
+
 		# To remove "DevTools listening on ws:..." message (https://stackoverflow.com/a/56118790/8965861)
 		chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
@@ -156,7 +157,14 @@ class PortalePicoGTS(object):
 
 								if (urls.length !== 0) {
 									let macchina = jvm.title.trim() || "unknown";
-									let jvm_name = Array.from(jvm.children).find(child => child.tagName == "B").innerText.trim() || "unknown";
+									let jvm_name = "";
+									try {
+										jvm_name = Array.from(jvm.children).find(child => child.tagName == "B").innerText.trim() || "unknown";
+									}
+									catch (e) {
+										console.error(e)
+										return
+									}
 
 									let http_url = urls.find(url => url.href.startsWith("http://")).href;
 									let https_url = urls.find(url => url.href.startsWith("https://")).href;
@@ -197,6 +205,7 @@ class PortalePicoGTS(object):
 
 	@staticmethod
 	def isReachable(url: str=BASE_URL):
+		print("Controllo se è raggiungibile")
 		return uri_exists_stream(url)
 
 
