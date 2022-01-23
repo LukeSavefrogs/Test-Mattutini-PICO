@@ -204,7 +204,7 @@ class C2C_Interface(object):
 
 	@staticmethod		
 	def isProgressBarActive (d):
-		return len(d.find_elements_by_id("nprogress")) == 0
+		return len(d.find_elements(By.ID, "nprogress")) == 0
 
 	@staticmethod		
 	def waitUntilPageLoaded (browser: webdriver.Chrome, timeout: int = 30):
@@ -228,7 +228,7 @@ class C2C_Interface(object):
 		Returns:
 			list: The C2C modals
 		"""
-		modals_in_page = browser.find_elements_by_css_selector('[role=dialog] > .modal-dialog')
+		modals_in_page = browser.find_elements(By.CSS_SELECTOR, '[role=dialog] > .modal-dialog')
 		modals_visible = [ modal for modal in modals_in_page if modal.is_displayed() ]
 
 		if not modals_in_page or not modals_visible:
@@ -238,9 +238,9 @@ class C2C_Interface(object):
 		for curr_modal in modals_visible:
 			modal_details = {
 				"__html": curr_modal,
-				"title": curr_modal.find_element_by_class_name("modal-title").get_attribute("innerText").strip(),
-				"body": curr_modal.find_element_by_class_name("modal-body").get_attribute("innerText").strip(),
-				"buttons": { button.get_attribute("innerText").strip(): button for button in curr_modal.find_elements_by_css_selector(".modal-footer button")}
+				"title": curr_modal.find_element(By.CLASS_NAME, "modal-title").get_attribute("innerText").strip(),
+				"body": curr_modal.find_element(By.CLASS_NAME, "modal-body").get_attribute("innerText").strip(),
+				"buttons": { button.get_attribute("innerText").strip(): button for button in curr_modal.find_elements(By.CSS_SELECTOR, ".modal-footer button")}
 			}
 
 			parsed_modal.append(modal_details)
@@ -310,15 +310,15 @@ class C2C_Interface(object):
 	
 	@staticmethod
 	def getSection(browser: webdriver.Chrome):
-		if not browser.find_elements_by_tag_name("router-view"):
+		if not browser.find_elements(By.TAG_NAME, "router-view"):
 			raise Exception("Main 'router-view' element not found")
 
 		PAGE_TO_DICT = {
-			"html": browser.find_element_by_tag_name("router-view"),
-			"header": browser.find_element_by_css_selector("router-view > div.header-container"),
+			"html": browser.find_element(By.TAG_NAME, "router-view"),
+			"header": browser.find_element(By.CSS_SELECTOR, "router-view > div.header-container"),
 			"body": {
 				"title": "",
-				"html": browser.find_element_by_css_selector("router-view > div.container"),
+				"html": browser.find_element(By.CSS_SELECTOR, "router-view > div.container"),
 				"main_content": {
 					"html": None,
 					"buttons": {}
@@ -329,10 +329,10 @@ class C2C_Interface(object):
 
 
 		# Se non è vuoto il contenuto (ad esempio nella pagina di Ricerca)
-		html_main_content = PAGE_TO_DICT["body"]["html"].find_element_by_css_selector("div[slot='main-content']")
+		html_main_content = PAGE_TO_DICT["body"]["html"].find_element(By.CSS_SELECTOR, "div[slot='main-content']")
 		
 		# Se sono presenti elementi (qualsiasi sezione tranne pagina di ricerca)
-		if len(html_main_content.find_elements_by_css_selector("*")) > 0:
+		if len(html_main_content.find_elements(By.CSS_SELECTOR, "*")) > 0:
 			
 			PAGE_TO_DICT["body"]["title"] = browser.execute_script("""
 				return Array.from(document.querySelectorAll("div[slot='main-content'] h2.au-target, div[slot='main-content'] .h2.au-target")).map(e => e.innerText.trim()).join(" / ")
@@ -341,7 +341,7 @@ class C2C_Interface(object):
 			PAGE_TO_DICT["body"].update({
 				"main_content": {
 					"html": html_main_content,
-					"buttons": { button.get_attribute("innerText").strip(): button for button in html_main_content.find_elements_by_css_selector("div.row > div > .btn.btn-primary.btn-block") },
+					"buttons": { button.get_attribute("innerText").strip(): button for button in html_main_content.find_elements(By.CSS_SELECTOR, "div.row > div > .btn.btn-primary.btn-block") },
 				}
 			})
 
@@ -349,8 +349,8 @@ class C2C_Interface(object):
 			PAGE_TO_DICT["body"]["title"] = "Search page"
 		
 		# Se è presente la Sidebar (Es. carrello)
-		if PAGE_TO_DICT["body"]["html"].find_elements_by_css_selector("div[slot='sidebar']"):
-			PAGE_TO_DICT["body"]["sidebar"] = PAGE_TO_DICT["body"]["html"].find_element_by_css_selector("div[slot='sidebar']"),
+		if PAGE_TO_DICT["body"]["html"].find_elements(By.CSS_SELECTOR, "div[slot='sidebar']"):
+			PAGE_TO_DICT["body"]["sidebar"] = PAGE_TO_DICT["body"]["html"].find_element(By.CSS_SELECTOR, "div[slot='sidebar']"),
 
 		return PAGE_TO_DICT
 
@@ -656,19 +656,19 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 				print("")
 				print("PAGINA - Ricerca soluzione:")
 				print(f"PAGINA - {C2C_Interface.getSection(driver)['body']['title']}: ")
-				SEARCH_FORM = driver.find_element_by_css_selector("div#tickets[role='tabpanel'] > search-ticket > form[role='form']")
+				SEARCH_FORM = driver.find_element(By.CSS_SELECTOR, "div#tickets[role='tabpanel'] > search-ticket > form[role='form']")
 
 
 				# 1) 	Stazione di PARTENZA
 				print("\tImposto stazione di partenza: \t\t", end="", flush=True)
-				stazione_partenza = SEARCH_FORM.find_element_by_css_selector("div.bro-tickets-origin w-locations input.tt-input")
+				stazione_partenza = SEARCH_FORM.find_element(By.CSS_SELECTOR, "div.bro-tickets-origin w-locations input.tt-input")
 				for i in range(5):
 					if C2C_Interface.set_value(stazione_partenza, TRAVEL_DETAILS["departure"]):
 						break
 
 
 				# 1.2) 	Controlla se la stazione esiste
-				stazioni_trovate = SEARCH_FORM.find_elements_by_css_selector("div.bro-tickets-origin w-locations div.tt-menu > .tt-dataset > div.tt-suggestion")
+				stazioni_trovate = SEARCH_FORM.find_elements(By.CSS_SELECTOR, "div.bro-tickets-origin w-locations div.tt-menu > .tt-dataset > div.tt-suggestion")
 				if len(stazioni_trovate) <= 0:
 					print(f"ERRORE (Nessuna stazione trovata corrispondente al nome: '{TRAVEL_DETAILS['departure']}')")
 					return False
@@ -683,13 +683,13 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 
 				# 2)	Stazione di ARRIVO
 				print("\tImposto stazione di arrivo: \t\t", end="", flush=True)
-				stazione_arrivo = SEARCH_FORM.find_element_by_css_selector("div.bro-tickets-destination w-locations input.tt-input")
+				stazione_arrivo = SEARCH_FORM.find_element(By.CSS_SELECTOR, "div.bro-tickets-destination w-locations input.tt-input")
 				for i in range(5):
 					if C2C_Interface.set_value(stazione_arrivo, TRAVEL_DETAILS["arrival"]):
 						break
 
 				# 2.2) 	Controlla se la stazione esiste
-				stazioni_trovate = SEARCH_FORM.find_elements_by_css_selector("div.bro-tickets-destination w-locations div.tt-menu > .tt-dataset > div.tt-suggestion")
+				stazioni_trovate = SEARCH_FORM.find_elements(By.CSS_SELECTOR, "div.bro-tickets-destination w-locations div.tt-menu > .tt-dataset > div.tt-suggestion")
 				if len(stazioni_trovate) <= 0:
 					print(f"ERRORE (Nessuna stazione trovata corrispondente al nome: '{TRAVEL_DETAILS['arrival']}')")
 					return False
@@ -705,13 +705,13 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 
 				# 3)	Imposto SOLO ANDATA
 				print("\tSeleziono checkbox 'One way': \t\t", end="", flush=True)
-				SEARCH_FORM.find_element_by_id("oneway").click()
+				SEARCH_FORM.find_element(By.ID, "oneway").click()
 				print("OK")
 
 
 				# 4)	Metto la DATA di partenza
 				print("\tImposto data e ora di partenza: \t", end="", flush=True)
-				elem_date = SEARCH_FORM.find_element_by_css_selector("div.bro-tickets-outward > .bro-tickets-outward-date > w-datetime > .date-picker-container > input.form-control.au-target")
+				elem_date = SEARCH_FORM.find_element(By.CSS_SELECTOR, "div.bro-tickets-outward > .bro-tickets-outward-date > w-datetime > .date-picker-container > input.form-control.au-target")
 				# elem_date.click()
 
 				# Il metodo clear() non funziona. Mi tocca usare il buon vecchio CTRL + A + Del :)
@@ -724,7 +724,7 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 
 
 				# ORA di partenza
-				elem_time = SEARCH_FORM.find_element_by_css_selector("div.bro-tickets-outward > .bro-tickets-outward-time > w-datetime > .date-picker-container > input.form-control.au-target")
+				elem_time = SEARCH_FORM.find_element(By.CSS_SELECTOR, "div.bro-tickets-outward > .bro-tickets-outward-time > w-datetime > .date-picker-container > input.form-control.au-target")
 				C2C_Interface.set_value(elem_time, TRAVEL_DETAILS["travel_time"], interval_seconds=0.5)
 				elem_time.send_keys(Keys.TAB)
 
@@ -812,9 +812,9 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 		print(f"PAGINA - {C2C_Interface.getSection(driver)['body']['title']}: ")
 		print("\tControllo soluzioni > 0: \t\t", end="", flush=True)
 
-		solutions = driver.find_elements_by_css_selector("#solutions-A-singles > fieldset#solutions-fieldset-A-singles .au-target.panel")
+		solutions = driver.find_elements(By.CSS_SELECTOR, "#solutions-A-singles > fieldset#solutions-fieldset-A-singles .au-target.panel")
 		if len(solutions) <= 0:
-			error_text = driver.find_element_by_id("singles-A").get_attribute("innerText").strip()
+			error_text = driver.find_element(By.ID, "singles-A").get_attribute("innerText").strip()
 			
 			print(f"ERRORE - Nessuna soluzione trovata ({error_text})")
 			return False
@@ -823,15 +823,15 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 
 
 		for tentativo in range(1, MAX_ATTEMPTS_BOOKING):
-			selected_solution = driver.find_element_by_css_selector('#solutions-A-singles > fieldset#solutions-fieldset-A-singles .au-target.panel.panel-primary')
+			selected_solution = driver.find_element(By.CSS_SELECTOR, '#solutions-A-singles > fieldset#solutions-fieldset-A-singles .au-target.panel.panel-primary')
 
 			print(f"\tSeleziono soluzione intermedia: \t", end="", flush=True)
 
 
 			mid_solution_id = int(len(solutions) / 2)
-			solutions[mid_solution_id].find_element_by_name("radio-offers-A-best").click()
+			solutions[mid_solution_id].find_element(By.NAME, "radio-offers-A-best").click()
 
-			selected_solution = driver.find_element_by_css_selector('#solutions-A-singles > fieldset#solutions-fieldset-A-singles .au-target.panel.panel-primary')
+			selected_solution = driver.find_element(By.CSS_SELECTOR, '#solutions-A-singles > fieldset#solutions-fieldset-A-singles .au-target.panel.panel-primary')
 
 			if solutions[mid_solution_id] == selected_solution: 
 				print(f"OK (soluzione n. {mid_solution_id})\n")
@@ -842,7 +842,7 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 
 			wait_start = time()
 
-			continue_button = driver.find_element_by_css_selector("#basket-panel > .panel-body button.btn.btn-primary")
+			continue_button = driver.find_element(By.CSS_SELECTOR, "#basket-panel > .panel-body button.btn.btn-primary")
 			continue_button.click()
 
 
@@ -904,7 +904,7 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 
 		
 		print(f"\tClicco su pulsante 'Continue': \t\t", end="", flush=True)
-		continue_button = driver.find_element_by_css_selector("#basket-panel > .panel-body button.btn.btn-primary")
+		continue_button = driver.find_element(By.CSS_SELECTOR, "#basket-panel > .panel-body button.btn.btn-primary")
 		continue_button.click()
 
 		# Wait until it asks for the Login Credentials
@@ -931,17 +931,17 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 
 		# Switching to the 'Continue as a guest' section of the 'Login please' dialog
 		print(f"\tCompilo sezione 'Continue as a guest': \t", end="", flush=True)
-		modal.find_element_by_id("guest").click()
+		modal.find_element(By.ID, "guest").click()
 
 		# Insert required email address
-		modal.find_element_by_id("loginEmail").send_keys(USER["email"] + Keys.TAB)
-		modal.find_element_by_id("repeatEmail").send_keys(USER["email"] + Keys.TAB)
+		modal.find_element(By.ID, "loginEmail").send_keys(USER["email"] + Keys.TAB)
+		modal.find_element(By.ID, "repeatEmail").send_keys(USER["email"] + Keys.TAB)
 		print("OK")
 
 
 		# Submit the form
 		print(f"\tProcedo ai metodi di consegna: \t", end="", flush=True)
-		modal.find_element_by_id("loginEmail").submit()
+		modal.find_element(By.ID, "loginEmail").submit()
 
 		
 	
@@ -968,7 +968,7 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 		print("\tEspando `Collect at the station`: \t", end="", flush=True)
 
 		# Expanding `Collect at the station` section
-		driver.find_element_by_id("delivery-station").click()
+		driver.find_element(By.ID, "delivery-station").click()
 
 		# Wait until content is visible
 		WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#collapse-station input#name")))
@@ -977,11 +977,11 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 		
 		# Setting the First and Last Name
 		print("\tCompilo con i dati richiesti: \t\t", end="", flush=True)
-		driver.find_element_by_css_selector("#collapse-station input#name").send_keys(USER["firstName"] + Keys.TAB)
-		driver.find_element_by_css_selector("#collapse-station input#surname").send_keys(USER["lastName"] + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "#collapse-station input#name").send_keys(USER["firstName"] + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "#collapse-station input#surname").send_keys(USER["lastName"] + Keys.TAB)
 		
 		# Checking "I am a non-UK resident" checkbox
-		driver.find_element_by_css_selector("#collapse-station #ukresident").click()
+		driver.find_element(By.CSS_SELECTOR, "#collapse-station #ukresident").click()
 		print("OK")
 
 		# Click on the 'Continue' button
@@ -994,7 +994,7 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 		print("\tClicco su 'Accept Terms/Conditions': \t", end="", flush=True)
 		try:
 			WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "acceptConditions")))
-			driver.find_element_by_id("acceptConditions").click()
+			driver.find_element(By.ID, "acceptConditions").click()
 			print("OK - Ho spuntato la checkbox 'Accept the Terms and Conditions'")
 		except TimeoutException:
 			print("OK - Nessuna checkbox 'Accept the Terms and Conditions' trovata")
@@ -1017,9 +1017,9 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 
 		# Address, City and Postal Code
 		print("\tCompilo con i dati postali: \t\t", end="", flush=True)
-		driver.find_element_by_id("postalCodeInput").send_keys("TEST" + Keys.TAB)
-		driver.find_element_by_id("firstLine").send_keys("TEST" + Keys.TAB)
-		driver.find_element_by_id("cityTown").send_keys("TEST" + Keys.TAB)
+		driver.find_element(By.ID, "postalCodeInput").send_keys("TEST" + Keys.TAB)
+		driver.find_element(By.ID, "firstLine").send_keys("TEST" + Keys.TAB)
+		driver.find_element(By.ID, "cityTown").send_keys("TEST" + Keys.TAB)
 		print("OK")
 
 
@@ -1040,8 +1040,8 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 
 		except (TimeoutException) as ex:
 			# If there was an error during the loading
-			if driver.find_elements_by_id("errorExc"):
-				errore_transazione_text = driver.find_element_by_id("errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
+			if driver.find_elements(By.ID, "errorExc"):
+				errore_transazione_text = driver.find_element(By.ID, "errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
 
 				print(f"ERRORE ({errore_transazione_text})")
 			else:
@@ -1077,22 +1077,22 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 			return True
 
 		print("\tInserisco dati carta: \t\t\t", end="", flush=True)
-		driver.find_element_by_css_selector("input[name='ACCNTFIRSTNAME']").send_keys(str(CARD["firstName"]) + Keys.TAB)
-		driver.find_element_by_css_selector("input[name='ACCNTLASTNAME']").send_keys(str(CARD["lastName"]) + Keys.TAB)
-		driver.find_element_by_css_selector("input[name='PAN']").send_keys(str(CARD["number"]) + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "input[name='ACCNTFIRSTNAME']").send_keys(str(CARD["firstName"]) + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "input[name='ACCNTLASTNAME']").send_keys(str(CARD["lastName"]) + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "input[name='PAN']").send_keys(str(CARD["number"]) + Keys.TAB)
 
-		select_mese = Select(driver.find_element_by_id("EXPDT_MM"))
+		select_mese = Select(driver.find_element(By.ID, "EXPDT_MM"))
 		select_mese.select_by_visible_text((datetime.now()).strftime('%m'))
 		
-		select_anno = Select(driver.find_element_by_id("EXPDT_YY"))
+		select_anno = Select(driver.find_element(By.ID, "EXPDT_YY"))
 		select_anno.select_by_visible_text((datetime.now() + relativedelta(years=1)).strftime('%Y'))
 
-		driver.find_element_by_css_selector("input[name='CVV']").send_keys(str(CARD["csc"]) + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "input[name='CVV']").send_keys(str(CARD["csc"]) + Keys.TAB)
 		print("OK")
 
 		# Clicco su 'Continua'
 		print("\tClicco su 'Continua': \t\t\t", end="", flush=True)
-		driver.find_element_by_id("continue").click()
+		driver.find_element(By.ID, "continue").click()
 		print("OK")
 
 		# Aspetto fino alla pagina di conferma dei dati della Carta
@@ -1100,7 +1100,7 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 
 		# Clicco su 'Conferma'
 		print("\tClicco su 'Conferma': \t\t\t", end="", flush=True)
-		driver.find_element_by_id("confirm").click()
+		driver.find_element(By.ID, "confirm").click()
 		print("OK")
 
 
@@ -1120,12 +1120,12 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 		else:
 			OTP = "111111"
 			print("\tInserimento OTP: \t\t\t", end="", flush=True)
-			driver.find_element_by_id("challengeDataEntry").send_keys(OTP + Keys.TAB)
+			driver.find_element(By.ID, "challengeDataEntry").send_keys(OTP + Keys.TAB)
 			sleep(0.5)
 			print(f"OK - Inserito OTP '{OTP}'")
 
 			print("\tClicco su 'Submit': \t\t\t", end="", flush=True)
-			driver.find_element_by_id("confirm").click()
+			driver.find_element(By.ID, "confirm").click()
 			print(f"OK")
 
 
@@ -1147,8 +1147,8 @@ def singleNodeTest_C2C (url, visible: bool=False, skip_payment: bool=False) -> b
 		except TimeoutException:
 			content = C2C_Interface.getSection(driver)["body"]["main_content"]["html"]
 			
-			if content.find_elements_by_css_selector("confirmationp > div > h2.au-target"):				
-				booking_is_confirmed = content.find_element_by_css_selector("confirmationp > div > h2.au-target").get_attribute("innerText").strip() == "Your booking is confirmed"
+			if content.find_elements(By.CSS_SELECTOR, "confirmationp > div > h2.au-target"):				
+				booking_is_confirmed = content.find_element(By.CSS_SELECTOR, "confirmationp > div > h2.au-target").get_attribute("innerText").strip() == "Your booking is confirmed"
 				
 				if booking_is_confirmed:
 					print("OK (Warning: non è stato trovato il dialog con la conferma email)")

@@ -77,8 +77,8 @@ class PortalePicoGTS(object):
 
 		self.driver.get(f"{self.url}/user/login")
 		self.waitUntilReady()
-		self.driver.find_element_by_id("loginform-login").send_keys(USERNAME)
-		self.driver.find_element_by_id("loginform-password").send_keys(PASSWORD + Keys.ENTER)
+		self.driver.find_element(By.ID, "loginform-login").send_keys(USERNAME)
+		self.driver.find_element(By.ID, "loginform-password").send_keys(PASSWORD + Keys.ENTER)
 		self.waitUntilReady()
 		print("OK")
 

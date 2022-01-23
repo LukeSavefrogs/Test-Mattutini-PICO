@@ -374,15 +374,15 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 		# -------------------------------------------------------------------------------------
 		print("PAGINA - Ricerca soluzione:")
 		print("\tImposto stazione di partenza e arrivo: \t", end="", flush=True)
-		driver.find_element_by_css_selector("#origin[name='departureStation']").send_keys(TRAVEL_DETAILS["departure"] + Keys.TAB)
-		driver.find_element_by_css_selector("#destination[name='arrivalStation']").send_keys(TRAVEL_DETAILS["arrival"] + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "#origin[name='departureStation']").send_keys(TRAVEL_DETAILS["departure"] + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "#destination[name='arrivalStation']").send_keys(TRAVEL_DETAILS["arrival"] + Keys.TAB)
 		print("OK")
 		
 
 
 		print("\tImposto data e ora di partenza: \t", end="", flush=True)
-		driver.find_element_by_css_selector("#calenderId1Dropdown > input#calenderId1Text").send_keys(TRAVEL_DETAILS['travel_date'] + Keys.TAB)
-		driver.find_element_by_css_selector("#departureTimeDiv #departureTimeText").send_keys(TRAVEL_DETAILS['travel_time'] + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "#calenderId1Dropdown > input#calenderId1Text").send_keys(TRAVEL_DETAILS['travel_date'] + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "#departureTimeDiv #departureTimeText").send_keys(TRAVEL_DETAILS['travel_time'] + Keys.TAB)
 		print("OK")
 
 
@@ -391,7 +391,7 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 
 		print("\n\tClicco su pulsante 'Cerca': \t\t", end="", flush=True)
 		search_start = time()
-		driver.find_element_by_id("searchButton").click()
+		driver.find_element(By.ID, "searchButton").click()
 
 		# Controlla se si presenta il dialog per la stazione sbagliata, altrimenti procede
 		try:
@@ -420,8 +420,8 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 		try:
 			WebDriverWait(driver, 120).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#searchRequestForm #refreshButton")))
 		except (TimeoutException) as ex:
-			if driver.find_elements_by_id("errorExc"):
-				errore = driver.find_element_by_id("errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
+			if driver.find_elements(By.ID, "errorExc"):
+				errore = driver.find_element(By.ID, "errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
 
 				print(f"ERRORE ({errore})")
 
@@ -436,14 +436,14 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 		print("PAGINA - Lista soluzioni trovate:")
 		print("\tControllo soluzioni > 0: \t\t", end="", flush=True)
 
-		if not driver.find_elements_by_id("accordion"):
+		if not driver.find_elements(By.ID, "accordion"):
 			print("ERRORE (Nessuna soluzione trovata)")
 
 			return False
 
 
-		solution_container = driver.find_element_by_css_selector("form#searchRequestForm > .panel-group#accordion > div.panel")
-		solutions = solution_container.find_elements_by_css_selector("div[id^='travelSolution']")
+		solution_container = driver.find_element(By.CSS_SELECTOR, "form#searchRequestForm > .panel-group#accordion > div.panel")
+		solutions = solution_container.find_elements(By.CSS_SELECTOR, "div[id^='travelSolution']")
 		
 		print (f"OK (trovate {len(solutions)} soluzioni)")
 
@@ -452,29 +452,29 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 		for tentativo in range (0, MAX_ATTEMPTS_SOLUTION_SELECT):
 			print(f"\n\tTentativo n. {tentativo+1}: \t\t\t", end="", flush=True)
 						
-			solution_container = driver.find_element_by_css_selector("form#searchRequestForm > .panel-group#accordion > div.panel")
-			solutions = solution_container.find_elements_by_css_selector("div[id^='travelSolution']")
+			solution_container = driver.find_element(By.CSS_SELECTOR, "form#searchRequestForm > .panel-group#accordion > div.panel")
+			solutions = solution_container.find_elements(By.CSS_SELECTOR, "div[id^='travelSolution']")
 
 			if tentativo >= int(len(solutions)):
 				print("ERRORE - Impossibile eseguire altri tentativi. Soluzioni non sufficenti")
 				return False
 
-			mid_travelSolution = solution_container.find_element_by_id(f"travelSolution{tentativo}")
+			mid_travelSolution = solution_container.find_element(By.ID, f"travelSolution{tentativo}")
 			print(f"OK (provo soluzione n. {tentativo})")
 
 			print("\tControllo biglietto acquistabile: \t", end="", flush=True)
 			ora_partenza, ora_arrivo = "N/D", "N/D"
 			try:
-				ora_partenza = mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(1) > div.split > span.bottom.text-center").get_attribute("innerText").strip()
-				ora_arrivo = mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(3) > div.split > span.bottom.text-center").get_attribute("innerText").strip()
+				ora_partenza = mid_travelSolution.find_element(By.CSS_SELECTOR, "table.table-solution-hover > tbody > tr > td:nth-child(1) > div.split > span.bottom.text-center").get_attribute("innerText").strip()
+				ora_arrivo = mid_travelSolution.find_element(By.CSS_SELECTOR, "table.table-solution-hover > tbody > tr > td:nth-child(3) > div.split > span.bottom.text-center").get_attribute("innerText").strip()
 				
 				SOLUTION = {
-					"ORARIO_PARTENZA": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(1) > div.split > span.bottom.text-center").get_attribute("innerText").strip(),
-					"ORARIO_ARRIVO": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(3) > div.split > span.bottom.text-center").get_attribute("innerText").strip(),
-					"DURATA": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) > div.descr.duration.text-center").get_attribute("innerText").strip(),
-					"NUMERO_CAMBI": re.search("Cambi: ([0-9]+)", mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) div.change").get_attribute("innerText").strip()).group(1) if mid_travelSolution.find_elements_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(4) div.change") else 0,
-					"ELENCO_TRENI": " -> ".join([ elem.find_element_by_css_selector(".train > .descr").get_attribute("innerText").strip() for elem in mid_travelSolution.find_elements_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(5) > .trainOffer") ]),
-					"PREZZO_DA": mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(6) > span > div > span.price").get_attribute("innerText").strip(),
+					"ORARIO_PARTENZA": mid_travelSolution.find_element(By.CSS_SELECTOR, "table.table-solution-hover > tbody > tr > td:nth-child(1) > div.split > span.bottom.text-center").get_attribute("innerText").strip(),
+					"ORARIO_ARRIVO": mid_travelSolution.find_element(By.CSS_SELECTOR, "table.table-solution-hover > tbody > tr > td:nth-child(3) > div.split > span.bottom.text-center").get_attribute("innerText").strip(),
+					"DURATA": mid_travelSolution.find_element(By.CSS_SELECTOR, "table.table-solution-hover > tbody > tr > td:nth-child(4) > div.descr.duration.text-center").get_attribute("innerText").strip(),
+					"NUMERO_CAMBI": re.search("Cambi: ([0-9]+)", mid_travelSolution.find_element(By.CSS_SELECTOR, "table.table-solution-hover > tbody > tr > td:nth-child(4) div.change").get_attribute("innerText").strip()).group(1) if mid_travelSolution.find_elements(By.CSS_SELECTOR, "table.table-solution-hover > tbody > tr > td:nth-child(4) div.change") else 0,
+					"ELENCO_TRENI": " -> ".join([ elem.find_element(By.CSS_SELECTOR, ".train > .descr").get_attribute("innerText").strip() for elem in mid_travelSolution.find_elements(By.CSS_SELECTOR, "table.table-solution-hover > tbody > tr > td:nth-child(5) > .trainOffer") ]),
+					"PREZZO_DA": mid_travelSolution.find_element(By.CSS_SELECTOR, "table.table-solution-hover > tbody > tr > td:nth-child(6) > span > div > span.price").get_attribute("innerText").strip(),
 				}
 			except WebDriverException as ex:
 				print(f"ERRORE - Biglietto NON acquistabile (treno {ora_partenza} - {ora_arrivo})")
@@ -493,7 +493,7 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 
 			print("\tEspando soluzione: \t\t\t", end="", flush=True)
 			try: 
-				mid_travelSolution.find_element_by_css_selector("table.table-solution-hover > tbody > tr > td:nth-child(6)").click()
+				mid_travelSolution.find_element(By.CSS_SELECTOR, "table.table-solution-hover > tbody > tr > td:nth-child(6)").click()
 				WebDriverWait(driver, 120).until(EC.visibility_of_element_located((By.CSS_SELECTOR, f"div#priceGrid{tentativo} div.row > div > input.btn.btn-primary.btn-lg.btn-block[type='button']")))
 			except (WebDriverException, TimeoutException) as ex:
 				print(f"\tClicco su 'Procedi': \t\t\t", end="", flush=True)
@@ -503,25 +503,25 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 				print(f"OK")
 
 			# Utilizzo Javascript per cliccare perchè l'elemento non è interagibile utilizzando Selenium
-			mid_priceGrid = solution_container.find_element_by_id(f"priceGrid{tentativo}")
-			pulsante_continua = mid_priceGrid.find_element_by_css_selector("div.row > div > input.btn.btn-primary.btn-lg.btn-block[type='button']")
+			mid_priceGrid = solution_container.find_element(By.ID, f"priceGrid{tentativo}")
+			pulsante_continua = mid_priceGrid.find_element(By.CSS_SELECTOR, "div.row > div > input.btn.btn-primary.btn-lg.btn-block[type='button']")
 			driver.execute_script("arguments[0].click();", pulsante_continua)
 			
 			print("\tAspetto il caricamento della pagina: \t", end="", flush=True)
 			try:
 				WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.ID, "firstPanel")))
 			except TimeoutException:
-				if driver.find_elements_by_id("errorExc"):
-					errore_text = driver.find_element_by_id("errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
+				if driver.find_elements(By.ID, "errorExc"):
+					errore_text = driver.find_element(By.ID, "errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
 
 					print(f"ERRORE ({errore_text})")
 					DebugManager.dump("PICO-TimeoutPrenotazione", driver, with_screenshot=True)
-					if driver.find_elements_by_id(f"priceGrid{tentativo}"):
+					if driver.find_elements(By.ID, f"priceGrid{tentativo}"):
 						continue
 					return False
 
-				elif driver.find_elements_by_id("msgErrorCredentials") and driver.find_element_by_id("msgErrorCredentials").is_displayed():
-					error_text = driver.find_element_by_id("msgErrorCredentials").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
+				elif driver.find_elements(By.ID, "msgErrorCredentials") and driver.find_element(By.ID, "msgErrorCredentials").is_displayed():
+					error_text = driver.find_element(By.ID, "msgErrorCredentials").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
 					
 					if error_text.startswith("!DOCTYPE html>"):
 						print(f"ERRORE - Uno dei treni nella tratta NON ESISTE o risulta NON VALIDO")
@@ -531,10 +531,10 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 
 					return False
 				
-				elif driver.find_elements_by_id("upSellingPopupContent") and driver.find_element_by_id("upSellingPopupContent").is_displayed():
+				elif driver.find_elements(By.ID, "upSellingPopupContent") and driver.find_element(By.ID, "upSellingPopupContent").is_displayed():
 					print("OK (Comparsa proposta di cambio a Premium)")
 					
-					target_button = driver.find_element_by_id("upSellingB1")
+					target_button = driver.find_element(By.ID, "upSellingB1")
 					print(f"\tClicco su '{target_button.get_attribute('value').strip()}': \t", end="", flush=True)
 					target_button.click()
 
@@ -547,10 +547,10 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 						DebugManager.dump("PICO-TimeoutPrenotazioneSecondo", driver, with_screenshot=True)
 						return False
 
-				elif driver.find_elements_by_id("dayAfterModal") and driver.find_element_by_id("dayAfterModal").is_displayed():
+				elif driver.find_elements(By.ID, "dayAfterModal") and driver.find_element(By.ID, "dayAfterModal").is_displayed():
 					print("OK (Comparso avviso di viaggio per il giorno successivo)")
 					
-					target_button = driver.find_element_by_css_selector("#dayAfterModal .modal-content > .modal-footer > button.btn-primary")
+					target_button = driver.find_element(By.CSS_SELECTOR, "#dayAfterModal .modal-content > .modal-footer > button.btn-primary")
 					print(f"\tClicco su '{target_button.get_attribute('value').strip()}': \t", end="", flush=True)
 					target_button.click()
 
@@ -585,43 +585,43 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 		# -------------------------------------------------------------------------------------
 		print("PAGINA - Inserimento dati prenotazione:", flush=True)
 
-		pannello_autenticazione = driver.find_element_by_id("firstPanel")
-		pannello_passeggeri = driver.find_element_by_id("startTravelDetails")
+		pannello_autenticazione = driver.find_element(By.ID, "firstPanel")
+		pannello_passeggeri = driver.find_element(By.ID, "startTravelDetails")
 
 		print("\tClicco su 'Procedi senza registrazione': \t", end="", flush=True)
-		pannello_autenticazione.find_element_by_id("nonSonoRegistrato").click()
+		pannello_autenticazione.find_element(By.ID, "nonSonoRegistrato").click()
 		WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.ID, "emailId")))
 		print ("OK")
 
 
 
 		print("\tInserimento dati Utente: \t\t", end="", flush=True)
-		notRegisteredSection = pannello_autenticazione.find_element_by_id("notRegisteredSection")
-		notRegisteredSection.find_element_by_id("nameId").send_keys(USER["firstName"] + Keys.TAB)
-		notRegisteredSection.find_element_by_id("snameId").send_keys(USER["lastName"] + Keys.TAB)
-		notRegisteredSection.find_element_by_id("emailId").send_keys(USER["email"] + Keys.TAB)
-		notRegisteredSection.find_element_by_id("email2Id").send_keys(USER["email"] + Keys.TAB)
-		notRegisteredSection.find_element_by_id("phId").send_keys(USER["tel_number"] + Keys.TAB)
+		notRegisteredSection = pannello_autenticazione.find_element(By.ID, "notRegisteredSection")
+		notRegisteredSection.find_element(By.ID, "nameId").send_keys(USER["firstName"] + Keys.TAB)
+		notRegisteredSection.find_element(By.ID, "snameId").send_keys(USER["lastName"] + Keys.TAB)
+		notRegisteredSection.find_element(By.ID, "emailId").send_keys(USER["email"] + Keys.TAB)
+		notRegisteredSection.find_element(By.ID, "email2Id").send_keys(USER["email"] + Keys.TAB)
+		notRegisteredSection.find_element(By.ID, "phId").send_keys(USER["tel_number"] + Keys.TAB)
 		print ("OK")
 
 
 
 		print("\tInserimento dati Passeggero: \t\t", end="", flush=True)
-		pannello_passeggeri.find_element_by_css_selector("#collapsePassenger div.row fieldset input[id^='firstName']").send_keys(USER["firstName"] + Keys.TAB)
-		pannello_passeggeri.find_element_by_css_selector("#collapsePassenger div.row fieldset input[id^='lastName']").send_keys(USER["lastName"] + Keys.TAB)
+		pannello_passeggeri.find_element(By.CSS_SELECTOR, "#collapsePassenger div.row fieldset input[id^='firstName']").send_keys(USER["firstName"] + Keys.TAB)
+		pannello_passeggeri.find_element(By.CSS_SELECTOR, "#collapsePassenger div.row fieldset input[id^='lastName']").send_keys(USER["lastName"] + Keys.TAB)
 		sleep(0.5)
-		pannello_passeggeri.find_element_by_css_selector("#collapsePassenger div.row fieldset input[id^='dob']").click()
+		pannello_passeggeri.find_element(By.CSS_SELECTOR, "#collapsePassenger div.row fieldset input[id^='dob']").click()
 		sleep(0.5)
-		pannello_passeggeri.find_element_by_css_selector("#collapsePassenger div.row fieldset input[id^='dob']").send_keys(USER["birth_date"] + Keys.TAB)
+		pannello_passeggeri.find_element(By.CSS_SELECTOR, "#collapsePassenger div.row fieldset input[id^='dob']").send_keys(USER["birth_date"] + Keys.TAB)
 		sleep(0.5)
-		pannello_passeggeri.find_element_by_css_selector("#collapsePassenger div.row fieldset input[id^='primaryEmail']").send_keys(USER["email"] + Keys.TAB)
-		pannello_passeggeri.find_element_by_css_selector("#collapsePassenger div.row fieldset input[id^='contactNo']").send_keys(USER["tel_number"] + Keys.TAB)
+		pannello_passeggeri.find_element(By.CSS_SELECTOR, "#collapsePassenger div.row fieldset input[id^='primaryEmail']").send_keys(USER["email"] + Keys.TAB)
+		pannello_passeggeri.find_element(By.CSS_SELECTOR, "#collapsePassenger div.row fieldset input[id^='contactNo']").send_keys(USER["tel_number"] + Keys.TAB)
 		print ("OK")
 
 
 		# Accetto le condizioni di trasporto
 		print("\n\tAccetto Termini e Condizioni: \t\t", end="", flush=True)
-		driver.find_element_by_id("termsCondition").click()
+		driver.find_element(By.ID, "termsCondition").click()
 		print ("OK")
 
 		# Fino a 5 tentativi
@@ -633,12 +633,12 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 
 			try: 
 				# Clicca su 'Continua'
-				driver.find_element_by_id("submitMyTrip").click()
+				driver.find_element(By.ID, "submitMyTrip").click()
 
 				try:
 					# Clicco su 'Acquista solo l'andata'
 					WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.ID, "modalReturnTrip")))
-					driver.find_element_by_id("modalReturnTripButton1").click()
+					driver.find_element(By.ID, "modalReturnTripButton1").click()
 				except TimeoutException:
 					pass
 			
@@ -652,16 +652,16 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 				break
 
 			except (TimeoutException) as ex:
-				if driver.find_elements_by_id("errorExc"):
-					errore_transazione_text = driver.find_element_by_id("errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
+				if driver.find_elements(By.ID, "errorExc"):
+					errore_transazione_text = driver.find_element(By.ID, "errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
 
 					print(f"ERRORE ({errore_transazione_text})")
 					continue
 			
 			except NoSuchElementException:
 				DebugManager.dump("PICO-ErroreDopoPrenotazione", driver, with_screenshot=True)
-				if driver.find_elements_by_id("errorExc"):
-					errore_transazione_text = driver.find_element_by_id("errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
+				if driver.find_elements(By.ID, "errorExc"):
+					errore_transazione_text = driver.find_element(By.ID, "errorExc").get_attribute('innerText').strip().replace('\n', ' ').replace('\r', '')
 
 					print(f"ERRORE ({errore_transazione_text})")
 
@@ -675,7 +675,7 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 				
 				return False
 
-		if not driver.find_elements_by_css_selector("div.data[id='data']"):
+		if not driver.find_elements(By.CSS_SELECTOR, "div.data[id='data']"):
 			print("\nERRORE FATALE - Esauriti tutti i 5 tentativi disponibili. Termine test in errore")
 
 			return False
@@ -695,22 +695,22 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 
 
 		print("\tInserisco dati carta: \t\t\t", end="", flush=True)
-		driver.find_element_by_css_selector("input[name='ACCNTFIRSTNAME']").send_keys(str(CARD["firstName"]) + Keys.TAB)
-		driver.find_element_by_css_selector("input[name='ACCNTLASTNAME']").send_keys(str(CARD["lastName"]) + Keys.TAB)
-		driver.find_element_by_css_selector("input[name='PAN']").send_keys(str(CARD["number"]) + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "input[name='ACCNTFIRSTNAME']").send_keys(str(CARD["firstName"]) + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "input[name='ACCNTLASTNAME']").send_keys(str(CARD["lastName"]) + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "input[name='PAN']").send_keys(str(CARD["number"]) + Keys.TAB)
 
-		select_mese = Select(driver.find_element_by_id("EXPDT_MM"))
+		select_mese = Select(driver.find_element(By.ID, "EXPDT_MM"))
 		select_mese.select_by_visible_text((datetime.now()).strftime('%m'))
 		
-		select_anno = Select(driver.find_element_by_id("EXPDT_YY"))
+		select_anno = Select(driver.find_element(By.ID, "EXPDT_YY"))
 		select_anno.select_by_visible_text((datetime.now() + relativedelta(years=1)).strftime('%Y'))
 
-		driver.find_element_by_css_selector("input[name='CVV']").send_keys(str(CARD["csc"]) + Keys.TAB)
+		driver.find_element(By.CSS_SELECTOR, "input[name='CVV']").send_keys(str(CARD["csc"]) + Keys.TAB)
 		print("OK")
 
 		# Clicco su 'Continua'
 		print("\tClicco su 'Continua': \t\t\t", end="", flush=True)
-		driver.find_element_by_id("continue").click()
+		driver.find_element(By.ID, "continue").click()
 		print("OK")
 
 		# Aspetto fino alla pagina di conferma dei dati della Carta
@@ -718,7 +718,7 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 
 		# Clicco su 'Conferma'
 		print("\tClicco su 'Conferma': \t\t\t", end="", flush=True)
-		driver.find_element_by_id("confirm").click()
+		driver.find_element(By.ID, "confirm").click()
 		print("OK")
 
 
@@ -740,12 +740,12 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 		else:
 			OTP = "111111"
 			print("\tInserimento OTP: \t\t\t", end="", flush=True)
-			driver.find_element_by_id("challengeDataEntry").send_keys(OTP + Keys.TAB)
+			driver.find_element(By.ID, "challengeDataEntry").send_keys(OTP + Keys.TAB)
 			sleep(0.5)
 			print(f"OK - Inserito OTP '{OTP}'")
 
 			print("\tClicco su 'Submit': \t\t\t", end="", flush=True)
-			driver.find_element_by_id("confirm").click()
+			driver.find_element(By.ID, "confirm").click()
 			print(f"OK")
 
 
@@ -772,7 +772,7 @@ def singleNodeTest (url, visible: bool=False, skip_payment: bool=False) -> bool:
 		
 		try:
 			popup = WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.ID, "popupInfo")))
-			popup_text = popup.find_element_by_css_selector(".modal-dialog > .modal-content > .modal-body > .inner-body").get_attribute("innerText").strip()
+			popup_text = popup.find_element(By.CSS_SELECTOR, ".modal-dialog > .modal-content > .modal-body > .inner-body").get_attribute("innerText").strip()
 
 			if popup_text in ["Operazione conclusa con successo!"]:
 				print(f"OK - Messaggio di conferma RICEVUTO ({popup_text})")
